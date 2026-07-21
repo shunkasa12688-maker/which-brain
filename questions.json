@@ -1,0 +1,1309 @@
+{
+  "$schema_note": "Which Brain? question bank. Edit/add/reorder items in `questions`. See README for the field guide. diff: 1 warm-up, 2 hard/machinery, 3 expert. tier:'machinery' shows the teal MACHINERY tag. A is drawn in blue, B in orange. smart = which side is correct ('A' or 'B'). render+args map to a diagram function in the game.",
+  "version": 1,
+  "questions": [
+    {
+      "id": 1,
+      "concept": "\"Bigger\"",
+      "diff": 1,
+      "prompt": "Same parameters. Which is the stronger model?",
+      "smart": "A",
+      "A": {
+        "spec": "Deep",
+        "cap": "A tall stack of many thin layers",
+        "render": "stack",
+        "args": [
+          24,
+          44
+        ]
+      },
+      "B": {
+        "spec": "Wide",
+        "cap": "A short stack of a few fat layers",
+        "render": "stack",
+        "args": [
+          8,
+          120
+        ]
+      },
+      "verdictLabel": "HIGHER-END",
+      "bd": [
+        "Both look equally 'big', and the wide one even looks chunkier.",
+        "But depth usually buys more capability than width. Each layer is another round of refining meaning, so a deeper stack composes more abstract structure from the same parameters.",
+        "'More parameters' is not the honest axis. The arrangement, especially depth, is what turns size into capability."
+      ],
+      "caveat": "Holds up to a point: past very deep stacks the gains flatten and training gets unstable, so real models balance depth and width.",
+      "cost": "Same parameter count, similar cost per token. The deeper one is smarter for the same price.",
+      "terms": [
+        [
+          "parameters",
+          "the learned numbers inside a model, often billions of them. 'Model size' usually means this count."
+        ],
+        [
+          "depth vs width",
+          "depth = how many layers are stacked; width = how big each layer is. Same total parameters can be arranged as few-and-wide or many-and-thin."
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "concept": "\"Thinking\"",
+      "diff": 1,
+      "prompt": "Same model. Which one is \"thinking\"?",
+      "smart": "B",
+      "A": {
+        "spec": "Direct",
+        "cap": "Prompt goes straight to an answer",
+        "render": "stream",
+        "args": [
+          false
+        ]
+      },
+      "B": {
+        "spec": "Reasoning",
+        "cap": "Prompt writes hidden steps, then answers",
+        "render": "stream",
+        "args": [
+          true
+        ]
+      },
+      "verdictLabel": "IS THINKING",
+      "bd": [
+        "There is no separate 'thinking' organ. It's the same stack run over more tokens.",
+        "B generates hidden reasoning tokens before its answer; each runs the full attention + feedforward pass and feeds into the next.",
+        "So 'thinking' is literally more forward passes, the same brain made to write to itself first. It buys capability by spending tokens."
+      ],
+      "caveat": "More is not always better: past a point extra reasoning tokens add cost without accuracy, and can talk the model out of a right answer.",
+      "cost": "Where cost hides: a 'thinking' answer can burn many times the tokens of a direct one, so the smarter-looking call is often the expensive one.",
+      "terms": [
+        [
+          "forward pass",
+          "one run of the model to produce the next token. The model generates one token per pass, then feeds it back in for the next."
+        ],
+        [
+          "reasoning tokens",
+          "extra hidden text the model writes to itself before the final answer (the 'chain of thought'). Each one is another forward pass, which is why 'thinking' costs more."
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "concept": "Bottleneck",
+      "diff": 2,
+      "prompt": "Generating a long answer. What actually limits speed?",
+      "smart": "B",
+      "A": {
+        "spec": "Compute",
+        "cap": "Lots of math units, mostly idle",
+        "render": "bottleneck",
+        "args": [
+          "flops"
+        ]
+      },
+      "B": {
+        "spec": "Memory",
+        "cap": "Data crawls through a narrow pipe to the chip",
+        "render": "bottleneck",
+        "args": [
+          "bandwidth"
+        ]
+      },
+      "verdictLabel": "THE REAL LIMIT",
+      "bd": [
+        "It feels like generation is a math problem, so more FLOPs should be the limit. It usually isn't.",
+        "Each new token does little math but must re-read the whole model plus a KV cache that grows with the conversation. The chip sits waiting on memory, not compute, so decoding is memory-bandwidth-bound.",
+        "That is why long chats slow down and cost more per token: the cache you drag along, not the arithmetic, is the choke."
+      ],
+      "caveat": "Regime: this is single-stream (batch-1) decoding. Prefill (reading the prompt) is compute-bound, and at large batch sizes decode becomes compute-bound too, because the weights are read once and shared across many sequences.",
+      "cost": "Where cost hides: per-token cost climbs as context grows, because the KV cache you re-read each step keeps getting bigger.",
+      "terms": [
+        [
+          "FLOPs",
+          "floating-point operations, i.e. the raw arithmetic a chip does. 'Compute-bound' means the math is the limit."
+        ],
+        [
+          "KV cache",
+          "the keys and values (K, V) the model has already computed for every earlier token, kept in memory so it doesn't recompute them. It grows with every token in the conversation."
+        ],
+        [
+          "memory bandwidth",
+          "how fast the chip can read data from memory. 'Memory-bound' means it's waiting on data movement, not on math."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 4,
+      "concept": "Attention cost",
+      "diff": 2,
+      "prompt": "Double the context. Which one costs disproportionately more?",
+      "smart": "B",
+      "A": {
+        "spec": "Short",
+        "cap": "Few tokens, few links between them",
+        "render": "attnScale",
+        "args": [
+          5
+        ]
+      },
+      "B": {
+        "spec": "Long",
+        "cap": "Twice the tokens, far more links",
+        "render": "attnScale",
+        "args": [
+          10
+        ]
+      },
+      "verdictLabel": "COSTS MORE",
+      "bd": [
+        "Twice the tokens sounds like twice the work. For attention it's closer to four times.",
+        "Every token attends to every other token, so the number of attention links grows with the square of the length. Doubling the context roughly quadruples that term.",
+        "So context length is not a linear cost. It's the part of the bill that grows fastest as inputs get longer."
+      ],
+      "caveat": "Regime: this is the attention term, which dominates only at long sequences. At short lengths the feedforward layers dominate instead. FlashAttention removes the quadratic memory but the compute is still quadratic; sparse and linear-attention variants change the math itself.",
+      "cost": "The lesson: attention compute scales with length squared, so stuffing more into the context window gets expensive faster than it looks.",
+      "terms": [
+        [
+          "attention",
+          "the step where each token looks at every other token to decide what's relevant. That all-pairs comparison is what grows with length."
+        ],
+        [
+          "context",
+          "all the text the model is holding at once (your prompt plus what it has written so far), measured in tokens. The 'context window' is the max it can hold."
+        ],
+        [
+          "quadratic",
+          "cost that grows with the square of the size: double the input, roughly 4× the work; triple it, ~9×."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 5,
+      "concept": "Quantization",
+      "diff": 2,
+      "prompt": "Same weights, fewer bits each. Which is cheaper at near-equal quality?",
+      "smart": "B",
+      "A": {
+        "spec": "16-bit",
+        "cap": "Each weight stored in fine detail",
+        "render": "quant",
+        "args": [
+          "fp16"
+        ]
+      },
+      "B": {
+        "spec": "4-bit",
+        "cap": "Each weight stored in coarse steps",
+        "render": "quant",
+        "args": [
+          "int4"
+        ]
+      },
+      "verdictLabel": "CHEAPER",
+      "bd": [
+        "Cutting precision to a quarter sounds like it should wreck the model. For big models it barely dents quality.",
+        "Weights are redundant, so rounding them to 4 bits (with an outlier-aware scheme) keeps almost all the capability while cutting memory and bandwidth to a fraction. Since decoding is memory-bound, smaller weights mean faster, cheaper serving.",
+        "So per-weight precision matters far less than you'd think. Parameter count carries the capability; the bits are largely slack."
+      ],
+      "caveat": "Regime: weight-only quantization of large models down to about 4 bits. It flips below ~4 bits, when quantizing activations too, or on small models, where degradation grows fast. Quantization-aware training recovers what naive rounding loses.",
+      "cost": "The win: near-equal quality at roughly a quarter of the memory, so the cheaper-to-serve model is the low-precision one.",
+      "terms": [
+        [
+          "weights",
+          "the millions-to-billions of numbers the model learned during training. They are what gets stored and loaded to run it."
+        ],
+        [
+          "bits / precision",
+          "how many binary digits each weight is stored with. More bits = finer detail but more memory. 16-bit vs 4-bit is fine detail vs coarse steps."
+        ],
+        [
+          "quantization",
+          "rounding those weights to fewer bits to shrink the model, trading a little precision for a lot less memory."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 6,
+      "concept": "Speculative decoding",
+      "diff": 2,
+      "prompt": "Which is faster with NO change to the output distribution?",
+      "smart": "B",
+      "A": {
+        "spec": "Solo",
+        "cap": "Big model makes one token per slow pass",
+        "render": "specDec",
+        "args": [
+          "solo"
+        ]
+      },
+      "B": {
+        "spec": "Drafted",
+        "cap": "Small model drafts, big model checks all at once",
+        "render": "specDec",
+        "args": [
+          "spec"
+        ]
+      },
+      "verdictLabel": "FASTER, SAME OUTPUT",
+      "bd": [
+        "Adding a second model sounds like more work, not less. Here it's a free speed-up.",
+        "A small draft model guesses several tokens; the big model checks all of them in one parallel pass and keeps the correct prefix. A rejection rule makes the result provably match sampling from the big model alone.",
+        "So you spend cheap draft passes to save expensive big-model passes, and the output distribution is unchanged."
+      ],
+      "caveat": "Regime: the exact-distribution guarantee holds for standard speculative sampling at matched settings, and it speeds things up when the big model is memory-bound and draft acceptance is high. It helps little when the draft disagrees often or the big model is already compute-bound (large batch).",
+      "cost": "The catch to know: it's identical in distribution, not the same token every time, and it only pays off when the draft is right often enough.",
+      "terms": [
+        [
+          "draft model",
+          "a small, fast model that cheaply guesses the next few tokens for the big model to check."
+        ],
+        [
+          "forward pass",
+          "one run of the model over the input to produce output. The big model normally needs one slow pass per token; here it checks several guesses in a single pass."
+        ],
+        [
+          "output distribution",
+          "the probabilities the model assigns to each possible next token. 'Same distribution' means the results are statistically identical to the big model, even if any single sample differs."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 7,
+      "concept": "Residual stream",
+      "diff": 2,
+      "prompt": "How does a transformer layer treat the representation?",
+      "smart": "A",
+      "A": {
+        "spec": "Add",
+        "cap": "Each layer adds onto one shared line",
+        "render": "residual",
+        "args": [
+          "add"
+        ]
+      },
+      "B": {
+        "spec": "Replace",
+        "cap": "Each layer overwrites the last",
+        "render": "residual",
+        "args": [
+          "replace"
+        ]
+      },
+      "verdictLabel": "HOW IT WORKS",
+      "bd": [
+        "It's natural to picture each layer transforming the input into a new thing and passing it on. That's not the mechanism.",
+        "Every block reads from a shared residual stream and adds its output back, so information flows down a highway and each layer writes an incremental update rather than replacing what came before.",
+        "That additive structure is what lets very deep stacks train at all, and lets features survive from early layers to late ones."
+      ],
+      "caveat": "Nuance: the stream isn't literally untouched. Normalization sits in the read path, and blocks read and write particular subspaces. The 'highway' is the residual pathway, working alongside normalization, not the sole reason depth trains.",
+      "cost": "Why it matters: depth adds capability precisely because layers refine a shared representation, instead of each one starting over.",
+      "terms": [
+        [
+          "representation",
+          "the model's internal numeric summary of the text so far, a big vector of numbers that gets refined layer by layer."
+        ],
+        [
+          "residual stream",
+          "the running representation that every layer reads from and adds its update back into, rather than replacing. Think of it as a shared highway the layers write onto."
+        ],
+        [
+          "layer / block",
+          "one processing stage of the transformer (attention plus a small network). Models stack many of them; 'depth' is how many."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 8,
+      "concept": "Distillation",
+      "diff": 2,
+      "prompt": "Same size. Which small model ends up stronger?",
+      "smart": "B",
+      "A": {
+        "spec": "Scratch",
+        "cap": "Learns only from right/wrong labels",
+        "render": "distill",
+        "args": [
+          "scratch"
+        ]
+      },
+      "B": {
+        "spec": "Taught",
+        "cap": "Learns from a big model's full hints",
+        "render": "distill",
+        "args": [
+          "distilled"
+        ]
+      },
+      "verdictLabel": "STRONGER",
+      "bd": [
+        "Same parameters should mean same ceiling. The training signal breaks the tie by a lot.",
+        "A student trained to match a big teacher's soft outputs gets a far richer signal than one-hot labels, so it learns the teacher's structure and beats an identical model trained from scratch.",
+        "So a small distilled model punches above its parameter count. Parameter count alone keeps misleading you about capability."
+      ],
+      "caveat": "Regime: the student is still bounded by its own capacity and by teacher quality. Distillation narrows the gap to the teacher, it doesn't erase it, and gains shrink as the capacity gap widens or the teacher is weak.",
+      "cost": "The lesson: how a model was trained can matter as much as its size, so cheap-to-run distilled models often outperform their weight class.",
+      "terms": [
+        [
+          "distillation",
+          "training a small 'student' model to copy a big 'teacher' model, so the student inherits much of the teacher's skill at a fraction of the size."
+        ],
+        [
+          "hard labels (one-hot)",
+          "training targets that say only the single right answer, nothing about the near-misses. Just '1' for correct, '0' for everything else."
+        ],
+        [
+          "soft targets",
+          "the teacher's full probabilities across all answers, which reveal how it weighs close alternatives. That extra nuance is the richer signal the student learns from."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 9,
+      "concept": "Tokenization",
+      "diff": 2,
+      "prompt": "Why does a strong model miscount the r’s in \"strawberry\"?",
+      "smart": "B",
+      "A": {
+        "spec": "Letters",
+        "cap": "Sees every individual letter",
+        "render": "tokenize",
+        "args": [
+          "chars"
+        ]
+      },
+      "B": {
+        "spec": "Tokens",
+        "cap": "Sees word-chunks, letters hidden inside",
+        "render": "tokenize",
+        "args": [
+          "tokens"
+        ]
+      },
+      "verdictLabel": "THE REAL REASON",
+      "bd": [
+        "It looks like a reasoning failure, as if the model just isn't smart enough to count to three.",
+        "But the model never sees letters. It reads subword tokens, so 'strawberry' arrives as a few chunks with the letters fused inside, and the per-letter structure is hidden from it.",
+        "So it's a representation problem, not an intelligence one. The thing you asked it to count isn't in what it sees."
+      ],
+      "caveat": "Nuance: it's a headwind, not a wall. Models can still spell or count via memorized spellings, chain-of-thought, or tools, and byte or character-level models sidestep the issue entirely.",
+      "cost": "Why it matters: token boundaries also make rare words and some languages cost more tokens, so 'the input' is not the characters you typed.",
+      "terms": [
+        [
+          "token",
+          "the unit a model actually reads: usually a word-chunk, not a single letter. 'strawberry' might be just 3 tokens like st + raw + berry."
+        ],
+        [
+          "subword",
+          "a piece of a word. Tokenizers split rare or long words into several subword tokens, which is why letters get fused inside a chunk."
+        ],
+        [
+          "tokenization",
+          "the step that chops your text into tokens before the model sees it. The model never sees raw letters, only these pieces."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 10,
+      "concept": "GQA",
+      "diff": 2,
+      "prompt": "Which shrinks the KV-cache memory with almost no quality hit?",
+      "smart": "B",
+      "A": {
+        "spec": "MHA",
+        "cap": "Every query gets its own memory head",
+        "render": "gqa",
+        "args": [
+          "mha"
+        ]
+      },
+      "B": {
+        "spec": "GQA",
+        "cap": "Queries share a few memory heads",
+        "render": "gqa",
+        "args": [
+          "gqa"
+        ]
+      },
+      "verdictLabel": "SMALLER CACHE",
+      "bd": [
+        "Giving every query head its own key/value head sounds more expressive, so it feels like the better design.",
+        "But the KV cache is what eats memory on long contexts. Letting groups of query heads share a smaller set of KV heads shrinks that cache a lot, with only a small quality cost.",
+        "So the smarter serving choice is the one that shares, which is why modern long-context models can be served affordably."
+      ],
+      "caveat": "Regime: this is an inference memory and bandwidth win, not a training or quality win. MQA (one KV head total) saves the most but loses a bit more quality; GQA is the middle ground with a small-but-nonzero gap versus full MHA.",
+      "cost": "The win: a much smaller KV cache means longer contexts and higher throughput on the same hardware, at near-equal quality.",
+      "terms": [
+        [
+          "query / key / value heads",
+          "attention runs in parallel 'heads'. Each query head asks what's relevant; the key/value (KV) heads hold what gets looked up. Only the KV part has to be cached."
+        ],
+        [
+          "KV cache",
+          "the stored keys and values for every earlier token. It's the main thing eating memory on long contexts, so shrinking it is the whole game here."
+        ],
+        [
+          "MHA vs GQA",
+          "MHA (multi-head attention) gives every query head its own KV head, so a big cache. GQA (grouped-query attention) makes groups of query heads share a few KV heads, so a much smaller cache."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 11,
+      "concept": "Embeddings",
+      "diff": 2,
+      "prompt": "Which embedding actually learned meaning?",
+      "smart": "A",
+      "A": {
+        "spec": "Clustered",
+        "cap": "Similar words grouped together",
+        "render": "embed",
+        "args": [
+          "clustered"
+        ]
+      },
+      "B": {
+        "spec": "Scattered",
+        "cap": "Words placed with no pattern",
+        "render": "embed",
+        "args": [
+          "random"
+        ]
+      },
+      "verdictLabel": "LEARNED MEANING",
+      "bd": [
+        "Both turn words into points. Only one arranged them meaningfully.",
+        "A trained embedding places words so similar ones land near each other; a random map spreads them with no structure, so distance means nothing.",
+        "So 'understands relationships' is really just: similar things ended up close."
+      ],
+      "caveat": "'Nearby' means similar in usage, not truly understood: antonyms like hot/cold and even social biases cluster together too.",
+      "cost": "Good embeddings are what make search, clustering and retrieval work at all.",
+      "terms": [
+        [
+          "embedding",
+          "turning each word into a vector (a point in space) so the model can do math on meaning."
+        ],
+        [
+          "clusters",
+          "groups of nearby points; similar words landing close is the sign the space learned structure."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 12,
+      "concept": "Positional encoding",
+      "diff": 2,
+      "prompt": "Attention is order-blind. Which one knows word order?",
+      "smart": "A",
+      "A": {
+        "spec": "Ordered",
+        "cap": "Each word tagged with its position",
+        "render": "posenc",
+        "args": [
+          "ordered"
+        ]
+      },
+      "B": {
+        "spec": "Bag",
+        "cap": "Words in a jumble, no order",
+        "render": "posenc",
+        "args": [
+          "unordered"
+        ]
+      },
+      "verdictLabel": "KNOWS ORDER",
+      "bd": [
+        "Plain attention sees a set, not a sequence: 'dog bites man' and 'man bites dog' look identical to it.",
+        "So position must be injected. The ordered one stamps each token with its place; the other is just a bag of words.",
+        "Without a position signal, word order, and most of grammar, is invisible to the model."
+      ],
+      "caveat": "A causal (left-to-right) mask already leaks some order, so decoder LLMs can partly learn position even without an explicit encoding.",
+      "cost": "Positional encoding is what lets a fixed attention block handle sequences at all.",
+      "terms": [
+        [
+          "permutation-invariant",
+          "gives the same result no matter the input order; bare attention is like this, which is why order must be added."
+        ],
+        [
+          "positional encoding",
+          "extra signal added to each token marking where it sits in the sequence."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 13,
+      "concept": "Temperature",
+      "diff": 2,
+      "prompt": "Same odds, one dial moved. Which is more predictable?",
+      "smart": "A",
+      "A": {
+        "spec": "Low temp",
+        "cap": "Odds spike on one top word",
+        "render": "temp",
+        "args": [
+          "sharp"
+        ]
+      },
+      "B": {
+        "spec": "High temp",
+        "cap": "Odds spread evenly across words",
+        "render": "temp",
+        "args": [
+          "flat"
+        ]
+      },
+      "verdictLabel": "MORE PREDICTABLE",
+      "bd": [
+        "These are the same next-token odds at two temperatures.",
+        "Low temperature sharpens the distribution toward the top token, so output is more deterministic; high temperature flattens it, so sampling turns random and 'creative'.",
+        "So one dial trades predictability for variety, without changing what the model knows."
+      ],
+      "caveat": "Temperature only reshapes peakiness, never the ranking: at 0 it's pure greedy/argmax, very high approaches uniform. Top-k/top-p clip on top of it.",
+      "cost": "Turn it down for facts and code; turn it up for brainstorming and variety.",
+      "terms": [
+        [
+          "logits / softmax",
+          "the raw per-token scores, turned into probabilities; temperature divides the scores before that step."
+        ],
+        [
+          "temperature",
+          "a knob on randomness: low = sharp and deterministic, high = flat and varied."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 14,
+      "concept": "Knowledge",
+      "diff": 2,
+      "prompt": "A fact born after training. Which model can use it?",
+      "smart": "B",
+      "A": {
+        "spec": "Weights",
+        "cap": "Facts locked in during training",
+        "render": "knowledge",
+        "args": [
+          "weights"
+        ]
+      },
+      "B": {
+        "spec": "Context",
+        "cap": "Facts handed over at run time",
+        "render": "knowledge",
+        "args": [
+          "context"
+        ]
+      },
+      "verdictLabel": "USES NEW FACTS",
+      "bd": [
+        "Facts baked into the weights are frozen the moment training ends.",
+        "Anything placed in the context window at run time is read fresh, with no retraining, so only context can carry a fact that didn't exist during training.",
+        "So 'the model knows X' splits into two very different things: learned once, versus handed over right now."
+      ],
+      "caveat": "Context is temporary, token-limited and paid per call; weights hold far more knowledge cheaply. Real systems lean on both.",
+      "cost": "This is why you can paste a new document and get answers about it with no fine-tuning.",
+      "terms": [
+        [
+          "weights",
+          "the knowledge baked in during training; fixed until you retrain."
+        ],
+        [
+          "context window",
+          "the text you hand the model at run time, read fresh every call, so it can carry brand-new facts."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 15,
+      "concept": "Fine-tuning",
+      "diff": 2,
+      "prompt": "Customizing a big model. Which is far cheaper?",
+      "smart": "B",
+      "A": {
+        "spec": "Full",
+        "cap": "Retrains the whole model",
+        "render": "finetune",
+        "args": [
+          "full"
+        ]
+      },
+      "B": {
+        "spec": "Adapter",
+        "cap": "Freezes the model, adds a tiny piece",
+        "render": "finetune",
+        "args": [
+          "adapter"
+        ]
+      },
+      "verdictLabel": "CHEAPER TO ADAPT",
+      "bd": [
+        "Full fine-tuning updates every weight, so it's costly to train and produces a whole new copy.",
+        "LoRA freezes the base model and trains a tiny add-on, cutting training memory and shrinking the result to megabytes, at often-comparable quality.",
+        "So customizing a model rarely means retraining all of it."
+      ],
+      "caveat": "Full fine-tuning can still win under a large domain shift or heavy new-knowledge injection; the small adapter has limited capacity.",
+      "cost": "LoRA is why teams ship dozens of task-specific variants of one base model cheaply.",
+      "terms": [
+        [
+          "fine-tuning",
+          "further training a pretrained model on your own task or data."
+        ],
+        [
+          "LoRA (adapter)",
+          "training small extra matrices while freezing the base, so customization is cheap and the artifact is tiny."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 16,
+      "concept": "RAG",
+      "diff": 2,
+      "prompt": "A private doc it never trained on. Which can answer?",
+      "smart": "B",
+      "A": {
+        "spec": "Memory",
+        "cap": "Answers from memory alone",
+        "render": "rag",
+        "args": [
+          "memory"
+        ]
+      },
+      "B": {
+        "spec": "Retrieval",
+        "cap": "Pulls in documents, then answers",
+        "render": "rag",
+        "args": [
+          "retrieval"
+        ]
+      },
+      "verdictLabel": "HANDLES NEW FACTS",
+      "bd": [
+        "A model answering from its weights alone can't know anything past training, or anything private.",
+        "RAG retrieves the relevant documents at query time and answers from them, so fresh or proprietary facts need no retraining.",
+        "So 'closed book' versus 'open book' is the real difference, not model size."
+      ],
+      "caveat": "RAG is only as good as what it retrieves: bad or missing hits still produce confident, wrong answers.",
+      "cost": "Retrieval is how assistants cite your docs and stay current without constant retraining.",
+      "terms": [
+        [
+          "RAG",
+          "retrieval-augmented generation: fetch relevant documents first, then answer using them."
+        ],
+        [
+          "parametric memory",
+          "what the model stored in its weights during training; frozen and blind to anything new or private."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 17,
+      "concept": "Batching",
+      "diff": 2,
+      "prompt": "Same GPU. Which serves more users per dollar?",
+      "smart": "B",
+      "A": {
+        "spec": "One",
+        "cap": "One request, GPU mostly idle",
+        "render": "batch",
+        "args": [
+          "single"
+        ]
+      },
+      "B": {
+        "spec": "Batched",
+        "cap": "Many requests packed onto the GPU",
+        "render": "batch",
+        "args": [
+          "batched"
+        ]
+      },
+      "verdictLabel": "MORE PER DOLLAR",
+      "bd": [
+        "Generating for one request barely uses the GPU: it reloads the whole model just to make a single token.",
+        "Batching many requests reuses that one weight-load across all of them, multiplying throughput per dollar, because decode is memory-bound, not compute-bound.",
+        "So the busy GPU packed with requests is the efficient one."
+      ],
+      "caveat": "Batching trades some per-request latency for throughput, and only helps until the batch turns compute-bound or the KV cache fills memory.",
+      "cost": "This is the core trick behind cheap API pricing: your request rides along with many others.",
+      "terms": [
+        [
+          "batching",
+          "running many requests through the GPU together so one weight-load serves them all."
+        ],
+        [
+          "throughput vs latency",
+          "throughput = total tokens/sec across users; latency = the wait for your one request. Batching raises the first, slightly costs the second."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 18,
+      "concept": "Overfitting",
+      "diff": 2,
+      "prompt": "Which model GENERALIZES better to new data?",
+      "smart": "B",
+      "A": {
+        "spec": "Tight",
+        "cap": "Curve bends through every dot",
+        "render": "fit",
+        "args": [
+          "overfit"
+        ]
+      },
+      "B": {
+        "spec": "Loose",
+        "cap": "Straight line ignores the wiggles",
+        "render": "fit",
+        "args": [
+          "smooth"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "Perfect training fit looks like the better model. Usually it's the worse one.",
+        "Bending through every point means memorising the sample's noise, so the gap between training and test error blows up. The looser fit captures only the reproducible signal, which is what transfers.",
+        "The lesson: low training error is not the goal. The train-to-test gap is."
+      ],
+      "caveat": "Flips when the perfect fit comes from a benign inductive bias (interpolation can generalise, see the last round), or when B is simply underfit and can't represent the signal at all.",
+      "cost": "Chasing zero training error wastes compute making a model worse. Regularise or stop early instead.",
+      "terms": [
+        [
+          "generalize",
+          "perform well on new, unseen data, not just the examples it trained on. That's the actual goal."
+        ],
+        [
+          "training vs test error",
+          "training error is mistakes on the data it learned from; test error is mistakes on fresh data. A big gap means it memorized rather than learned."
+        ],
+        [
+          "overfitting",
+          "when a model hugs the training data so tightly it captures the random noise, so it looks perfect in training but fails on new data."
+        ]
+      ]
+    },
+    {
+      "id": 19,
+      "concept": "Bias–variance",
+      "diff": 2,
+      "prompt": "Tiny, noisy dataset. Which has lower TEST error?",
+      "smart": "B",
+      "A": {
+        "spec": "Flexible",
+        "cap": "Wiggly fit on very few points",
+        "render": "flex",
+        "args": [
+          "flex"
+        ]
+      },
+      "B": {
+        "spec": "Simple",
+        "cap": "Straight fit on very few points",
+        "render": "flex",
+        "args": [
+          "simple"
+        ]
+      },
+      "verdictLabel": "LOWER TEST ERROR",
+      "bd": [
+        "The flexible model can fit anything, so it feels more capable. On tiny noisy data it loses.",
+        "With few samples and real noise, a flexible model has high variance: it chases the noise and swings wildly with the sample drawn. The simple model trades a little bias for a big drop in variance, and variance dominates the error here.",
+        "So the right tool is the smaller model. Capability you can't feed is a liability, not an asset."
+      ],
+      "caveat": "'Capacity' means effective capacity: a heavily regularised or pretrained big model behaves as low-capacity and can win even on tiny data. And if the true signal is genuinely intricate, the simple model's bias dominates instead.",
+      "cost": "Small data plus a giant model is money spent to overfit. Match model size to data size.",
+      "terms": [
+        [
+          "capacity",
+          "how flexible a model is, i.e. how complex a pattern it can bend to fit. High-capacity models can fit almost anything, which is not always good."
+        ],
+        [
+          "variance",
+          "how much the model's fit swings depending on which random sample it saw. High variance means it chases noise and is unstable on small data."
+        ],
+        [
+          "bias",
+          "error from a model being too simple to capture the real pattern. The tradeoff: simple models have more bias but less variance."
+        ]
+      ]
+    },
+    {
+      "id": 20,
+      "concept": "Right tool",
+      "diff": 2,
+      "prompt": "Small image dataset, strong locality. Which wins?",
+      "smart": "A",
+      "A": {
+        "spec": "CNN",
+        "cap": "Scans small local windows",
+        "render": "visionArch",
+        "args": [
+          "cnn"
+        ]
+      },
+      "B": {
+        "spec": "Transformer",
+        "cap": "Links every patch to every patch",
+        "render": "visionArch",
+        "args": [
+          "vit"
+        ]
+      },
+      "verdictLabel": "WINS HERE",
+      "bd": [
+        "Transformers beat CNNs at the frontier, so the ViT looks like the safe pick. Here it isn't.",
+        "Convolution bakes in locality and translation equivariance, priors that match images, so a CNN needs far less data. A plain ViT has weak spatial bias and must learn locality from data, which needs large-scale pretraining to pay off.",
+        "So 'better architecture' depends on data scale. The inductive bias that fits the problem wins when data is scarce."
+      ],
+      "caveat": "Flips with scale: a ViT pretrained on large data (or a locality-aware transformer like Swin) matches or beats CNNs. The real axis is inductive bias versus data, not conv versus attention.",
+      "cost": "Pick the architecture whose built-in assumptions fit your data, and you pay for far less training data and compute.",
+      "terms": [
+        [
+          "CNN (convolution)",
+          "a network that scans an image with small local windows, so nearby pixels are grouped by design. Great for images, and needs less data."
+        ],
+        [
+          "Vision Transformer (ViT)",
+          "applies transformer attention to image patches, letting any patch relate to any other. Very powerful, but must learn spatial structure from lots of data."
+        ],
+        [
+          "inductive bias",
+          "the assumptions baked into a model's design. When those assumptions match the problem (like locality for images), it learns from far less data."
+        ]
+      ]
+    },
+    {
+      "id": 21,
+      "concept": "Ensembles",
+      "diff": 2,
+      "prompt": "Same total compute. Which GENERALIZES better?",
+      "smart": "B",
+      "A": {
+        "spec": "Single",
+        "cap": "One big model, one set of mistakes",
+        "render": "ensemble",
+        "args": [
+          "single"
+        ]
+      },
+      "B": {
+        "spec": "Ensemble",
+        "cap": "Many small models, averaged",
+        "render": "ensemble",
+        "args": [
+          "ensemble"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "One big model feels stronger than a committee of small ones. For generalisation, the committee often wins.",
+        "Independently trained models make different, uncorrelated mistakes. Averaging them cancels those errors, cutting variance and improving calibration and out-of-distribution robustness.",
+        "So diversity beats raw size for reliability, at the same total compute."
+      ],
+      "caveat": "Flips when the budget makes each member too weak: then underfitting dominates and one big model in a better basin wins. And an ensemble costs more to serve at inference.",
+      "cost": "Ensembling trades serving cost for robustness. Cheaper to train diverse small models, pricier to run all of them per query.",
+      "terms": [
+        [
+          "ensemble",
+          "several separately trained models whose answers are combined (usually averaged) into one prediction."
+        ],
+        [
+          "why averaging helps",
+          "independent models make different mistakes. Averaging cancels the uncorrelated errors, so the combined answer is steadier than any single model."
+        ],
+        [
+          "robustness",
+          "how well performance holds up on messy or unfamiliar data, not just the clean test set."
+        ]
+      ]
+    },
+    {
+      "id": 22,
+      "concept": "\"Bigger = pricier\"",
+      "diff": 2,
+      "prompt": "Which model is CHEAPER to run per token?",
+      "smart": "A",
+      "A": {
+        "spec": "Sparse",
+        "cap": "Huge, but only a slice runs per token",
+        "render": "moe",
+        "args": [
+          "moe"
+        ]
+      },
+      "B": {
+        "spec": "Dense",
+        "cap": "Smaller, but all of it runs per token",
+        "render": "moe",
+        "args": [
+          "dense"
+        ]
+      },
+      "verdictLabel": "CHEAPER",
+      "bd": [
+        "A is the bigger model, so it looks pricier. Per token, it's cheaper.",
+        "A dense model runs every parameter for every token. A Mixture-of-Experts model has many expert blocks but a router sends each token to just a couple.",
+        "So a model with far more parameters can cost like a small one to run, because most of it stays dark on any given token."
+      ],
+      "caveat": "MoE saves compute per token, not memory: every expert must still be loaded. And routing adds its own overhead and instability.",
+      "cost": "The real lesson: total size and cost-per-token are different things. Activated size is what you pay for.",
+      "terms": [
+        [
+          "dense model",
+          "a model where every parameter runs for every token. Bigger dense model = more compute per token."
+        ],
+        [
+          "Mixture-of-Experts (MoE)",
+          "a model split into many 'expert' blocks, where a router activates only a couple per token. Huge total size, but only a slice runs each time."
+        ],
+        [
+          "activated vs total params",
+          "total = all the parameters that exist; activated = the ones actually used on a given token. You pay for activated, so MoE can be cheap despite being huge."
+        ]
+      ]
+    },
+    {
+      "id": 23,
+      "concept": "Learning rate",
+      "diff": 2,
+      "prompt": "Same model, two step sizes. Which one actually learns?",
+      "smart": "B",
+      "A": {
+        "spec": "Big steps",
+        "cap": "Big jumps that overshoot",
+        "render": "lrate",
+        "args": [
+          "big"
+        ]
+      },
+      "B": {
+        "spec": "Small steps",
+        "cap": "Small steps settling to the bottom",
+        "render": "lrate",
+        "args": [
+          "small"
+        ]
+      },
+      "verdictLabel": "ACTUALLY LEARNS",
+      "bd": [
+        "Bigger steps sound like faster learning. Past a point they overshoot the target and bounce out of the valley.",
+        "The well-sized rate steps down and settles at the minimum; the too-large one diverges and never lands.",
+        "So there's a ceiling: the best rate is the largest one that still converges, not simply the biggest."
+      ],
+      "caveat": "Too small is its own failure: painfully slow and prone to stalling on plateaus. The real target is a tuned rate, often with warmup and decay.",
+      "cost": "A bad learning rate is the number-one reason training silently fails to converge.",
+      "terms": [
+        [
+          "learning rate",
+          "how big a step training takes downhill on each update."
+        ],
+        [
+          "gradient descent",
+          "stepping down the loss surface toward lower error."
+        ]
+      ]
+    },
+    {
+      "id": 24,
+      "concept": "Dropout",
+      "diff": 2,
+      "prompt": "Overfitting risk. Which trick generalizes better?",
+      "smart": "B",
+      "A": {
+        "spec": "Full",
+        "cap": "All units active every time",
+        "render": "dropout",
+        "args": [
+          "full"
+        ]
+      },
+      "B": {
+        "spec": "Dropout",
+        "cap": "Random units switched off in training",
+        "render": "dropout",
+        "args": [
+          "dropout"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "Using every unit every time looks like full power. On data it can overfit, that backfires.",
+        "Randomly switching units off during training stops them co-adapting, acting as regularization, so the net leans on robust features and generalizes better.",
+        "So deliberately handicapping the network during training makes it stronger at test time."
+      ],
+      "caveat": "Only when overfitting is the risk. If the model underfits, or already uses heavy normalization and huge data, dropout just adds noise, which is why many large pretrains set it to zero. It's off at inference.",
+      "cost": "Dropout is a nearly free regularizer: no extra parameters, just randomness during training.",
+      "terms": [
+        [
+          "dropout",
+          "randomly switching off a fraction of units each training step, then using all of them at test time."
+        ],
+        [
+          "regularization",
+          "anything that discourages memorizing the training data, to improve generalization."
+        ]
+      ]
+    },
+    {
+      "id": 25,
+      "concept": "Feature scaling",
+      "diff": 2,
+      "prompt": "Same data, features rescaled. Which trains faster?",
+      "smart": "B",
+      "A": {
+        "spec": "Raw",
+        "cap": "Stretched bowl, the path zig-zags",
+        "render": "scaling",
+        "args": [
+          "unscaled"
+        ]
+      },
+      "B": {
+        "spec": "Scaled",
+        "cap": "Round bowl, the path goes straight down",
+        "render": "scaling",
+        "args": [
+          "scaled"
+        ]
+      },
+      "verdictLabel": "TRAINS FASTER",
+      "bd": [
+        "Features on wildly different ranges warp the loss into a stretched ravine, so gradient descent zig-zags slowly toward the minimum.",
+        "Standardizing the features rounds the bowl out, so the path runs almost straight down and converges faster and more stably.",
+        "So a quick preprocessing step can matter as much as the optimizer."
+      ],
+      "caveat": "Tree models don't care about scale, and adaptive optimizers absorb some of it. Scaling changes the path, not the optimum, unless you also use L1/L2, kNN or RBF kernels.",
+      "cost": "Forgetting to scale is a classic cause of slow or stuck training in linear models and nets.",
+      "terms": [
+        [
+          "feature scaling",
+          "putting inputs on comparable ranges (e.g. standardizing to mean 0, variance 1)."
+        ],
+        [
+          "ill-conditioning",
+          "a stretched-ravine loss surface that makes gradient descent zig-zag."
+        ]
+      ]
+    },
+    {
+      "id": 26,
+      "concept": "Boundary",
+      "diff": 2,
+      "prompt": "Two classes in opposite corners. Which fits?",
+      "smart": "B",
+      "A": {
+        "spec": "Linear",
+        "cap": "One straight dividing line",
+        "render": "boundary",
+        "args": [
+          "linear"
+        ]
+      },
+      "B": {
+        "spec": "Tree",
+        "cap": "Stair-step dividing lines",
+        "render": "boundary",
+        "args": [
+          "tree"
+        ]
+      },
+      "verdictLabel": "FITS THE DATA",
+      "bd": [
+        "A linear model can only draw one straight cut. On checkerboard-style classes, no single line separates them.",
+        "A decision tree makes axis-aligned splits, carving the plane into regions, so it fits patterns a line can't.",
+        "So 'which is more powerful' depends on the data's shape, not on which sounds fancier."
+      ],
+      "caveat": "Add feature crosses or a kernel and a linear model bends too; and trees render smooth or diagonal boundaries as jagged steps and overfit. On truly linear data, the line generalizes better.",
+      "cost": "Match the boundary shape to your data and you need far less model and less tuning.",
+      "terms": [
+        [
+          "decision boundary",
+          "the line or surface a model uses to separate classes."
+        ],
+        [
+          "linearly separable",
+          "when one straight cut can split the classes; XOR/checkerboard is not, so a line fails."
+        ]
+      ]
+    },
+    {
+      "id": 27,
+      "concept": "L1 vs L2",
+      "diff": 2,
+      "prompt": "Which penalty zeroes out useless features?",
+      "smart": "A",
+      "A": {
+        "spec": "L1",
+        "cap": "Many weights pushed to zero",
+        "render": "reg",
+        "args": [
+          "sparse"
+        ]
+      },
+      "B": {
+        "spec": "L2",
+        "cap": "All weights shrunk a little",
+        "render": "reg",
+        "args": [
+          "smooth"
+        ]
+      },
+      "verdictLabel": "ZEROES FEATURES",
+      "bd": [
+        "Both penalties shrink weights. Only one drives them to exactly zero.",
+        "L1's penalty has corners on the axes, so the solution often lands with many weights at exactly 0, selecting features; L2 shrinks everything smoothly but rarely to zero.",
+        "So if you want a model that ignores junk inputs, the penalty shape decides it."
+      ],
+      "caveat": "Among correlated features L1 keeps one and zeros the rest somewhat arbitrarily; elastic net (L1+L2) restores grouped, more stable selection.",
+      "cost": "L1 gives you automatic feature selection: a smaller, cheaper, more interpretable model.",
+      "terms": [
+        [
+          "L1 / lasso",
+          "a penalty on the sum of |weights|; its corners push many weights to exactly zero (sparse)."
+        ],
+        [
+          "L2 / ridge",
+          "a penalty on squared weights; shrinks them smoothly toward zero but rarely to zero."
+        ]
+      ]
+    },
+    {
+      "id": 28,
+      "concept": "Precision vs recall",
+      "diff": 2,
+      "prompt": "Cancer screening. Which model do you want?",
+      "smart": "A",
+      "A": {
+        "spec": "Broad",
+        "cap": "Wide net: catches all, plus false alarms",
+        "render": "prnet",
+        "args": [
+          "broad"
+        ]
+      },
+      "B": {
+        "spec": "Precise",
+        "cap": "Tight net: only the sure ones",
+        "render": "prnet",
+        "args": [
+          "precise"
+        ]
+      },
+      "verdictLabel": "RIGHT FOR SCREENING",
+      "bd": [
+        "Neither is 'better' in general: it's a tradeoff you tune.",
+        "The broad net catches almost every case but raises false alarms (high recall); the precise net flags only sure cases but misses some (high precision).",
+        "For cancer screening a miss can be fatal, so you want high recall, the broad net, even at the cost of false alarms."
+      ],
+      "caveat": "Flip the domain and the answer flips: for spam blocking a false positive (a lost real email) is costly, so you'd favor precision instead.",
+      "cost": "Choosing the operating point is a business call: what's worse, a miss or a false alarm?",
+      "terms": [
+        [
+          "recall",
+          "of all real positives, how many you catch; high recall = few misses."
+        ],
+        [
+          "precision",
+          "of all you flag, how many are truly positive; high precision = few false alarms."
+        ]
+      ]
+    },
+    {
+      "id": 29,
+      "concept": "Loss landscape",
+      "diff": 2,
+      "prompt": "Which is guaranteed to find the best solution?",
+      "smart": "A",
+      "A": {
+        "spec": "Convex",
+        "cap": "One smooth valley, one bottom",
+        "render": "landscape",
+        "args": [
+          "convex"
+        ]
+      },
+      "B": {
+        "spec": "Bumpy",
+        "cap": "Many dips to get stuck in",
+        "render": "landscape",
+        "args": [
+          "bumpy"
+        ]
+      },
+      "verdictLabel": "GUARANTEED OPTIMUM",
+      "bd": [
+        "A convex loss is a single smooth bowl: every path downhill reaches the one global minimum.",
+        "A non-convex loss (any deep net) is bumpy, with many local dips and saddles, so where you end up depends on where you started.",
+        "So only the convex case comes with a guarantee; the bumpy one comes with hope and good engineering."
+      ],
+      "caveat": "In practice deep non-convex nets still train beautifully: most minima are about equally good and SGD slips past saddles, so non-convex means 'no guarantee', not 'bad'.",
+      "cost": "It's why classic convex models are so reliable, and why deep learning leans on tricks and scale instead of guarantees.",
+      "terms": [
+        [
+          "convex",
+          "a loss shaped like one bowl, so any local minimum is the global one."
+        ],
+        [
+          "local minimum / saddle",
+          "dips and flat spots in a bumpy (non-convex) loss where optimization can stall."
+        ]
+      ]
+    },
+    {
+      "id": 30,
+      "concept": "Double descent",
+      "diff": 3,
+      "prompt": "Which model has the WORST test error?",
+      "smart": "A",
+      "A": {
+        "spec": "Interpolation",
+        "cap": "Model sits right at the error peak",
+        "render": "ddescent",
+        "args": [
+          "peak"
+        ]
+      },
+      "B": {
+        "spec": "Classic",
+        "cap": "Model sits at the classic sweet spot",
+        "render": "ddescent",
+        "args": [
+          "sweet"
+        ]
+      },
+      "verdictLabel": "WORST ERROR",
+      "bd": [
+        "Classic bias-variance says the biggest model overfits worst. Double descent says otherwise: the worst spot is the middle.",
+        "Test error peaks right at the interpolation threshold, where the model has just enough capacity to fit the data exactly, with huge unstable weights. Grow far past that and implicit regularisation picks smoother solutions, so error descends a second time.",
+        "So 'just barely fits' (A) is the worst place to be, worse than the smaller sweet-spot model, and worse than a much larger one."
+      ],
+      "caveat": "This is the honest, defensible claim: the interpolation threshold is the peak. We do NOT claim 'just past it beats the sweet spot', which depends on noise, optimizer bias, and regularisation, and with good regularisation double descent can vanish entirely.",
+      "cost": "Why it matters: scaling a model up can lower error even when bias-variance says it should rise, so 'add parameters' is not always overfitting.",
+      "terms": [
+        [
+          "interpolation threshold",
+          "the size where a model has just enough capacity to fit the training data exactly (zero training error). Test error is worst right here."
+        ],
+        [
+          "double descent",
+          "the surprising pattern where test error falls, then rises to a peak at that threshold, then falls again as the model gets much bigger, two descents instead of one."
+        ],
+        [
+          "regularization",
+          "techniques that discourage a model from fitting noise (penalties, early stopping, dropout). Strong regularization can flatten the peak away entirely."
+        ]
+      ]
+    }
+  ]
+}
