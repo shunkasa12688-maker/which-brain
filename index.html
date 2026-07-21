@@ -1,0 +1,2576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Which Brain? — read the architecture, not the size</title>
+<meta name="description" content="Two AI model architectures, same total size. Pick the smarter one. A game that dismantles the lazy intuitions about what makes a model powerful and what makes it expensive.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Which Brain? — can you read a model's architecture?">
+<meta property="og:description" content="Two architectures, same size. Which is the smarter model? A 15-second game that breaks down what 'bigger', 'thinking' and 'smarter' really mean.">
+<meta property="og:image" content="og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --bg:#0a1830; --paper:#0f2140; --panel:#122748; --panel2:#0f2242; --line:#274468;
+    --ink:#eaf2ff; --sub:#a9c0e0; --faint:#6f88ad;
+    --accent:#3d8bff; --accent2:#ff8b39;
+    --good:#34c176; --bad:#ff6a45; --gold:#e0a53a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;line-height:1.6;
+    background-color:#0a1830;
+  }
+  #netbg{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none}
+  body::before{content:"";position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent) 18%,var(--accent2) 50%,var(--accent) 82%,transparent);opacity:.85;z-index:100}
+  .wrap{position:relative;z-index:1}
+  .wrap{max-width:940px;margin:0 auto;padding:20px 16px 60px}
+  .screen{display:none;animation:fade .35s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- START ---------- */
+  .hero{max-width:640px;margin:0 auto;padding-top:8px}
+  .heroIcon{display:flex;justify-content:center;margin:8px 0 2px}
+  .heroIcon svg{filter:drop-shadow(0 10px 22px rgba(22,103,214,.22))}
+  .iconrow{display:flex;justify-content:center;align-items:center;gap:26px;margin:20px auto 2px;flex-wrap:wrap}
+  .iconrow .ic{display:flex;flex-direction:column;align-items:center;gap:7px;width:118px}
+  .iconrow .ic .lbl{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.2px;text-align:center}
+  @media(max-width:520px){.iconrow{gap:14px}.iconrow .ic{width:96px}}
+  .brand{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:14px 0 4px}
+  .brand h1{font-size:40px;margin:0;letter-spacing:-1px;font-weight:800;color:var(--ink)}
+  .brand .dot{color:var(--accent)}
+  .tag{color:var(--sub);text-align:center;font-size:16px;max-width:600px;margin:0 auto 4px}
+  .tag strong{color:var(--ink)}
+  .sub{color:var(--sub);text-align:center;font-size:14px;margin:16px auto 6px;max-width:600px}
+  .disclose{color:var(--faint);text-align:center;font-size:12px;line-height:1.5;max-width:560px;margin:12px auto 0;font-style:italic}
+  .cta{display:block;width:100%;max-width:420px;margin:26px auto 6px;background:var(--accent);color:#fff;border:none;padding:17px 20px;border-radius:14px;font-size:18px;font-weight:700;cursor:pointer;transition:.14s;font-family:inherit}
+  .cta:hover{background:#0f51ad;transform:translateY(-1px)}
+  .primerlist{max-width:560px;margin:22px auto 0;padding:0;list-style:none}
+  .primerlist li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--sub);margin-bottom:9px}
+  .primerlist li b{color:var(--ink)}
+  .primerlist .n{flex-shrink:0;width:22px;height:22px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent2)}
+  .foot{color:var(--faint);text-align:center;font-size:12px;margin-top:26px;line-height:1.6}
+
+  /* ---------- GAME ---------- */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 12px}
+  .top .left{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--sub)}
+  .homebtn{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;transition:.14s;font-family:inherit}
+  .homebtn:hover{border-color:var(--accent);color:var(--accent)}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-weight:600;color:var(--ink);font-size:13px}
+  .timer{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;min-width:58px;justify-content:center;transition:color .2s,border-color .2s,background .2s}
+  .timer .clk{opacity:.55}
+  .timer .tnum{font-weight:800}
+  .timer.warn{color:var(--bad);border-color:var(--bad);background:rgba(224,85,46,.09)}
+  .timer.warn .clk{opacity:1}
+  .timer.warn .tnum{animation:tick 1s steps(1) infinite}
+  @keyframes tick{0%,100%{opacity:1}50%{opacity:.45}}
+  .timer.done{color:var(--faint)}
+  .streak{display:flex;align-items:center;gap:6px}
+  .streak .fl{filter:grayscale(1);opacity:.4;transition:.2s}
+  .streak.hot .fl{filter:none;opacity:1;animation:pulse 1s ease infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  .bar{height:6px;background:var(--panel);border-radius:99px;overflow:hidden;margin-bottom:14px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));width:0;transition:width .35s ease}
+
+  .concept{display:inline-block;font-size:10px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;padding:4px 9px;border-radius:7px;color:var(--accent);background:rgba(22,103,214,.11)}
+  .difftag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;padding:4px 9px;border-radius:7px}
+  .difftag.d1{color:var(--sub);background:var(--panel2);border:1px solid var(--line)}
+  .difftag.dm{color:var(--accent);background:rgba(22,103,214,.13)}
+  .difftag.d2{color:#b06810;background:rgba(199,125,22,.15)}
+  .difftag.d3{color:#fff;background:var(--accent2)}
+  .qrow{display:flex;align-items:center;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:2px;text-align:center}
+  .qtext{color:var(--ink);font-size:24px;font-weight:800;line-height:1.28;flex-basis:100%;margin-top:8px;letter-spacing:-.2px;text-shadow:0 1px 10px rgba(0,0,0,.25)}
+  @media(max-width:640px){.qtext{font-size:20px}}
+  .constraint{text-align:center;color:var(--sub);font-size:13px;margin:6px 0 4px}
+  .constraint b{color:var(--accent);font-weight:700}
+  .askrow{color:var(--faint);font-size:12px;font-weight:600;margin:8px 0 16px;text-align:center;letter-spacing:.3px}
+
+  .arena{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:640px){.arena{grid-template-columns:1fr;gap:14px}}
+  .vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sub);z-index:3;box-shadow:0 0 0 6px var(--bg)}
+  @media(max-width:640px){.vs{display:none}}
+  .mcard{background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);cursor:pointer;transition:.16s;position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 10px rgba(19,40,64,.05)}
+  .mcard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 22px rgba(22,103,214,.14)}
+  .mcard .head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .mcard .who{font-size:13px;font-weight:800;color:var(--ink);flex-shrink:0}
+  .mcard .spec{font-size:11px;color:var(--sub);font-weight:600;text-align:right}
+  .mcard.reveal .spec{opacity:0}  /* hide spec on reveal so the badge is readable */
+  .mcard .diagram{padding:8px 6px 2px;display:flex;justify-content:center;align-items:center;min-height:300px}
+  .mcard .diagram svg{max-width:100%;height:auto}
+  .mcard .cap{padding:0 15px 8px;font-size:13.5px;font-weight:700;color:var(--ink);text-align:center;line-height:1.35;min-height:36px}
+  .mcard .pickhint{padding:0 15px 13px;font-size:12px;font-weight:700;color:var(--faint);text-align:center}
+  .mcard:hover .pickhint{color:var(--accent2)}
+  .mcard .badge{display:none;position:absolute;top:0;right:0;font-size:10px;font-weight:800;letter-spacing:.5px;padding:5px 11px;border-bottom-left-radius:12px}
+  .mcard.reveal{cursor:default}
+  .mcard.reveal:hover{transform:none;box-shadow:0 2px 10px rgba(19,40,64,.05)}
+  .mcard.reveal .pickhint{display:none}
+  .mcard.smart{border-color:var(--good);background:rgba(26,158,87,.06)}
+  .mcard.smart .badge{display:block;background:var(--good);color:#fff}
+  .mcard.dim{border-color:var(--line);opacity:.72}
+  .mcard.dim .badge{display:block;background:var(--faint);color:#fff}
+  .mcard.picked-wrong{border-color:var(--bad);background:rgba(224,85,46,.06);opacity:1}
+
+  .reveal-panel{display:none;margin-top:16px;animation:fade .3s ease}
+  .verdict{font-size:22px;font-weight:800;margin-bottom:10px}
+  .verdict.win{color:var(--good)}
+  .verdict.lose{color:var(--bad)}
+  .terms{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:12px}
+  .terms .tt{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--sub);margin-bottom:7px}
+  .terms dl{margin:0}
+  .terms .term{margin:0 0 7px;font-size:13.5px;line-height:1.5}
+  .terms .term:last-child{margin-bottom:0}
+  .terms .term b{color:var(--accent2);font-weight:800}
+  .breakdown{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .breakdown .bt{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent2);margin-bottom:6px}
+  .breakdown p{margin:0 0 8px;font-size:14.5px;line-height:1.55}
+  .breakdown p:last-child{margin-bottom:0}
+  .breakdown .caveat{color:var(--sub);font-size:12.5px;font-style:italic}
+  .cost{display:flex;align-items:flex-start;gap:8px;color:var(--gold);font-size:13.5px;font-weight:600;background:rgba(199,125,22,.09);border:1px solid rgba(199,125,22,.28);border-radius:12px;padding:11px 14px;margin-bottom:16px}
+  .next{display:block;width:100%;background:var(--accent);color:#fff;border:none;padding:15px;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;transition:transform .12s,background .12s;font-family:inherit;box-shadow:0 6px 18px rgba(61,139,255,.28)}
+  .next:hover{transform:translateY(-2px);background:#5a9dff}
+
+  /* ---------- END ---------- */
+  .endcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 22px;text-align:center;max-width:560px;margin:20px auto;box-shadow:0 8px 24px rgba(19,40,64,.07)}
+  .rank{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .rankname{font-size:32px;font-weight:800;margin:6px 0 2px;letter-spacing:-.5px}
+  .bigscore{font-size:56px;font-weight:800;letter-spacing:-2px;margin:12px 0 0}
+  .bigscore span{color:var(--faint);font-size:26px}
+  .lesson{color:var(--sub);font-size:14px;margin:14px auto 4px;max-width:470px}
+  .summary{max-width:500px;margin:18px auto 4px;text-align:left}
+  .summary .sumhead{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--sub);font-weight:800;margin-bottom:8px;text-align:center}
+  .srow{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;background:var(--panel2)}
+  .srow.r-ok{border-left:3px solid var(--good)}
+  .srow.r-no{border-left:3px solid var(--bad)}
+  .srow .sc{font-weight:900;font-size:15px;line-height:1.35;flex-shrink:0}
+  .srow .sc.ok{color:var(--good)} .srow .sc.no{color:var(--bad)}
+  .srow .stxt{flex:1;min-width:0}
+  .srow .sq{font-size:13px;font-weight:700;color:var(--ink);line-height:1.35}
+  .srow .sa{font-size:12px;color:var(--sub);margin-top:2px}
+  .srow .sa b{color:var(--ink);font-weight:700}
+  .srow .sconcept{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);background:rgba(22,103,214,.13);padding:1px 6px;border-radius:5px;margin-left:4px}
+  .share{background:var(--panel2);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;color:var(--ink);font-size:13px;margin:18px auto 12px;max-width:480px;cursor:pointer}
+  .copied{color:var(--good);font-size:13px;height:16px;margin-top:6px;font-weight:600}
+  .btnrow{display:flex;gap:10px;max-width:480px;margin:0 auto;flex-wrap:wrap}
+  .btnrow button{flex:1;min-width:150px;padding:14px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;border:none;transition:transform .12s;font-family:inherit}
+  .btnrow button:hover{transform:translateY(-2px)}
+  .b-primary{background:var(--accent);color:#fff}
+  .b-ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)!important}
+</style>
+</head>
+<body>
+<canvas id="netbg" aria-hidden="true"></canvas>
+<div class="wrap">
+
+  <!-- ================= START ================= -->
+  <section id="start" class="screen active">
+    <div class="hero">
+      <div class="heroIcon" id="heroIcon"></div>
+      <div class="brand"><h1>Which Brain<span class="dot">?</span></h1></div>
+      <p class="tag">Two machine-learning models, drawn as diagrams. Read them and pick the one the question asks for. <strong>The obvious answer is usually wrong.</strong></p>
+      <button class="cta" id="startBtn">Start</button>
+      <div class="iconrow" id="iconRow"></div>
+      <ul class="primerlist">
+        <li><span class="n">1</span><span><b>6 rounds</b> drawn fresh from a pool of 30, ramping from <b>warm-up</b> to <b>expert</b>. Every play is a different mix, so no two runs are the same. Covers how LLMs really run (KV cache, quantization, embeddings, RAG) plus classic ML (overfitting, decision boundaries, double descent).</span></li>
+        <li><span class="n">2</span><span>You can't just count boxes. The answer hinges on a real tradeoff, and sometimes the honest answer is <b>"it depends"</b>, explained on the reveal.</span></li>
+        <li><span class="n">3</span><span>Each round dismantles a lazy intuition: bigger, thinking, cheaper, faster, generalizes, the right tool.</span></li>
+      </ul>
+      <p class="disclose">Diagrams are simplified teaching models. Every reveal names the regime where the claim holds and where it flips, checked for rigor, so it teaches a real tendency, not a hard law.</p>
+      <p class="foot">A short game to pressure-test your intuition about what actually makes a model powerful, and where the cost really comes from. Built for people who think they already know.</p>
+    </div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section id="game" class="screen">
+    <div class="top">
+      <div class="left">
+        <button class="homebtn" id="homeBtn" aria-label="Back to home">← Home</button>
+        <span id="counter">Round 1 / 6</span>
+      </div>
+      <div class="right" style="display:flex;align-items:center;gap:10px">
+        <div class="timer pill" id="timerBox" aria-label="Time left"><span class="clk">⏱</span><span class="tnum" id="timerNum">25</span><span style="opacity:.55">s</span></div>
+        <div class="streak pill" id="streakBox"><span class="fl">🔥</span><span id="streakNum">0</span></div>
+      </div>
+    </div>
+    <div class="bar"><i id="progress"></i></div>
+
+    <div class="qrow">
+      <span id="conceptTag" class="concept"></span>
+      <span id="diffTag" class="difftag"></span>
+      <span class="qtext" id="promptText"></span>
+    </div>
+    <div class="askrow"><b>Tap the one you think is the higher-end model.</b></div>
+
+    <div class="arena">
+      <div class="mcard" id="cardA" role="button" tabindex="0" aria-label="Model A" onclick="pick('A')">
+        <div class="head"><span class="who">Model A</span><span class="spec" id="specA"></span></div>
+        <div class="diagram" id="diagA"></div>
+        <div class="cap" id="capA"></div>
+        <div class="pickhint">tap to pick this one</div>
+        <div class="badge" id="badgeA"></div>
+      </div>
+      <div class="mcard" id="cardB" role="button" tabindex="0" aria-label="Model B" onclick="pick('B')">
+        <div class="head"><span class="who">Model B</span><span class="spec" id="specB"></span></div>
+        <div class="diagram" id="diagB"></div>
+        <div class="cap" id="capB"></div>
+        <div class="pickhint">tap to pick this one</div>
+        <div class="badge" id="badgeB"></div>
+      </div>
+      <div class="vs">VS</div>
+    </div>
+
+    <div class="reveal-panel" id="revealPanel" aria-live="polite">
+      <div class="verdict" id="verdict"></div>
+      <div class="terms" id="termsBox" style="display:none">
+        <div class="tt">In plain words</div>
+        <dl id="termsBody"></dl>
+      </div>
+      <div class="breakdown">
+        <div class="bt" id="bdTitle">Breaking it down</div>
+        <div id="bdBody"></div>
+        <p class="caveat" id="bdCaveat"></p>
+      </div>
+      <div class="cost" id="costText"></div>
+      <button class="next" id="nextBtn" onclick="nextRound()">Next round →</button>
+    </div>
+  </section>
+
+  <!-- ================= END ================= -->
+  <section id="end" class="screen">
+    <div class="endcard">
+      <div class="rank">Your architecture intuition</div>
+      <div class="rankname" id="rankName">—</div>
+      <div class="bigscore" id="bigScore">0<span>/6</span></div>
+      <p class="lesson" id="lessonText"></p>
+      <div class="summary" id="summaryBox"></div>
+      <div class="share" id="shareText"></div>
+      <div class="copied" id="copiedMsg"></div>
+      <div class="btnrow">
+        <button class="b-primary" id="againBtn">Play again</button>
+        <button class="b-ghost" onclick="goStart()">Home</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   DIAGRAM RENDERERS  (clean SVG; the picture is the question)
+   ============================================================ */
+const C = { accent:'#1667d6', accent2:'#ee6a1c', ink:'#132840', sub:'#54677e', line:'#cbdcef', gold:'#c77d16' };
+
+function svgOpen(w,h){ return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`; }
+
+/* ---- decorative homepage icons (original line art in the theme palette) ---- */
+function icoWrap(sz,mode){ // mode: 'fill' (blue), 'fillO' (orange), 'ring', 'line'
+  const fill = mode==='fill'?C.accent : mode==='fillO'?C.accent2 : null;
+  const ring = mode==='ring'?C.accent : null;
+  const open=`<svg width="${sz}" height="${sz}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">`;
+  const bg = fill?`<circle cx="50" cy="50" r="48" fill="${fill}"/>`:(ring?`<circle cx="50" cy="50" r="47" fill="none" stroke="${ring}" stroke-width="2.2"/>`:'');
+  const line = (mode==='fill'||mode==='fillO')?'#ffffff':C.accent;
+  return {open,bg,line};
+}
+// brain-in-circuit hero
+function icoBrainCircuit(sz,mode){
+  const {open,bg,line}=icoWrap(sz,mode); let s=open+bg;
+  const cx=50, sw=2.4;
+  s+=`<path d="M${cx} 24 C ${cx-10} 20, ${cx-20} 24, ${cx-22} 32 C ${cx-32} 30, ${cx-38} 40, ${cx-33} 47 C ${cx-40} 52, ${cx-38} 63, ${cx-30} 65 C ${cx-31} 74, ${cx-22} 80, ${cx-14} 76 C ${cx-10} 82, ${cx} 82, ${cx} 76 Z" fill="none" stroke="${line}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s+=`<path d="M${cx-6} 34 C ${cx-16} 36, ${cx-16} 44, ${cx-8} 46" fill="none" stroke="${line}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  s+=`<path d="M${cx-6} 54 C ${cx-18} 56, ${cx-16} 66, ${cx-8} 66" fill="none" stroke="${line}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  s+=`<line x1="${cx}" y1="24" x2="${cx}" y2="76" stroke="${line}" stroke-width="${sw}"/>`;
+  [['M{o} 38 H 60 V 30 H 72',72,30],['M{o} 50 H 78',78,50],['M{o} 62 H 60 V 72 H 72',72,72]].forEach(([d,ex,ey])=>{
+    s+=`<path d="${d.replace('{o}',cx)}" fill="none" stroke="${line}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    s+=`<circle cx="${ex}" cy="${ey}" r="3.4" fill="none" stroke="${line}" stroke-width="${sw}"/>`;
+  });
+  return s+`</svg>`;
+}
+// chip with mini-brain + pins
+function icoChip(sz,mode){
+  const {open,bg,line}=icoWrap(sz,mode); let s=open+bg;
+  s+=`<rect x="34" y="34" width="32" height="32" rx="4" fill="none" stroke="${line}" stroke-width="2.4"/>`;
+  s+=`<path d="M49 41 C 43 41, 42 47, 45 49 C 42 51, 43 57, 49 57" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`;
+  s+=`<path d="M51 41 C 57 41, 58 47, 55 49 C 58 51, 57 57, 51 57" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`;
+  s+=`<line x1="50" y1="41" x2="50" y2="57" stroke="${line}" stroke-width="1.8"/>`;
+  for(let i=0;i<3;i++){ const p=40+i*10;
+    s+=`<line x1="34" y1="${p}" x2="26" y2="${p}" stroke="${line}" stroke-width="2"/>`;
+    s+=`<line x1="66" y1="${p}" x2="74" y2="${p}" stroke="${line}" stroke-width="2"/>`;
+    s+=`<line x1="${p}" y1="34" x2="${p}" y2="26" stroke="${line}" stroke-width="2"/>`;
+    s+=`<line x1="${p}" y1="66" x2="${p}" y2="74" stroke="${line}" stroke-width="2"/>`;
+  }
+  [[24,40],[24,60],[76,50]].forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="3" fill="none" stroke="${line}" stroke-width="2"/>`);
+  return s+`</svg>`;
+}
+// AI head profile with chip
+function icoHead(sz,mode){
+  const {open,bg,line}=icoWrap(sz,mode); let s=open+bg;
+  s+=`<path d="M36 76 L36 58 C 30 54, 30 42, 38 36 C 48 28, 62 30, 67 40 C 71 48, 68 56, 62 58 L60 62 L60 76" fill="none" stroke="${line}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s+=`<rect x="42" y="42" width="15" height="15" rx="2.5" fill="none" stroke="${line}" stroke-width="2"/>`;
+  s+=`<text x="49.5" y="53.5" text-anchor="middle" font-size="8.5" font-weight="800" fill="${line}" font-family="Arial">AI</text>`;
+  s+=`<line x1="57" y1="46" x2="63" y2="46" stroke="${line}" stroke-width="1.8"/><circle cx="66" cy="46" r="2.2" fill="none" stroke="${line}" stroke-width="1.8"/>`;
+  s+=`<line x1="57" y1="53" x2="61" y2="53" stroke="${line}" stroke-width="1.8"/><circle cx="64" cy="53" r="2.2" fill="none" stroke="${line}" stroke-width="1.8"/>`;
+  return s+`</svg>`;
+}
+// circuit node graph
+function icoNet(sz,mode){
+  const {open,bg,line}=icoWrap(sz,mode); let s=open+bg;
+  const nodes=[[34,36],[66,32],[50,52],[32,66],[68,66]], edges=[[0,2],[1,2],[2,3],[2,4],[0,1]];
+  const nodeFill = mode==='fillO'?C.accent2 : mode==='fill'?C.accent : '#fff';
+  edges.forEach(([a,b])=>s+=`<line x1="${nodes[a][0]}" y1="${nodes[a][1]}" x2="${nodes[b][0]}" y2="${nodes[b][1]}" stroke="${line}" stroke-width="2"/>`);
+  nodes.forEach(([x,y],i)=>s+=`<circle cx="${x}" cy="${y}" r="${i===2?5:4}" fill="${nodeFill}" stroke="${line}" stroke-width="2"/>`);
+  return s+`</svg>`;
+}
+function mountHomeIcons(){
+  const h=document.getElementById('heroIcon'); if(h) h.innerHTML=icoBrainCircuit(120,'fill');
+  const row=document.getElementById('iconRow');
+  if(row) row.innerHTML=
+    `<div class="ic">${icoChip(62,'ring')}<span class="lbl">read the machine</span></div>`+
+    `<div class="ic">${icoHead(62,'line')}<span class="lbl">build the intuition</span></div>`+
+    `<div class="ic">${icoNet(62,'fillO')}<span class="lbl">spot the tradeoff</span></div>`;
+}
+
+// A stack of transformer layers. layers = how deep, width = how wide each layer.
+function stack(layers, width, color){
+  const W=230, H=310, top=26, bot=26, gap=3;
+  const avail = H-top-bot;
+  const bh = Math.max(3, (avail-gap*(layers-1))/layers);
+  const bw = width, x=(W-bw)/2;
+  let s = svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">next token ↑</text>`;
+  for(let i=0;i<layers;i++){
+    const y = top + i*(bh+gap);
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="2.5" fill="${color}" opacity="${(0.5+0.45*(i/Math.max(1,layers-1))).toFixed(2)}"/>`;
+  }
+  s += `<text x="${W/2}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="${C.sub}">tokens in ↑</text>`;
+  s += `</svg>`;
+  return s;
+}
+
+// Dense block vs Mixture-of-Experts: one big FFN vs many experts with a router lighting up a few.
+function moe(kind, color){
+  const W=230, H=310;
+  let s = svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">one layer, feedforward part</text>`;
+  if(kind==='dense'){
+    s += `<rect x="55" y="40" width="120" height="230" rx="6" fill="${color}" opacity="0.8"/>`;
+    s += `<text x="${W/2}" y="160" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">one dense</text>`;
+    s += `<text x="${W/2}" y="178" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">block</text>`;
+    s += `<text x="${W/2}" y="292" text-anchor="middle" font-size="10.5" fill="${C.sub}">every token uses all of it</text>`;
+  } else {
+    // 8 experts in a grid; 2 lit up
+    const lit = [1,4];
+    const cols=2, rows=4, ew=52, eh=42, gx=16, gy=10;
+    const startX=(W-(cols*ew+(cols-1)*gx))/2, startY=52;
+    let idx=0;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const x=startX+c*(ew+gx), y=startY+r*(eh+gy);
+      const on = lit.includes(idx);
+      s += `<rect x="${x}" y="${y}" width="${ew}" height="${eh}" rx="5" fill="${on?color:'#e7e1d5'}" opacity="${on?0.9:1}" stroke="${on?color:C.line}" stroke-width="${on?0:1}"/>`;
+      idx++;
+    }
+    s += `<text x="${W/2}" y="42" text-anchor="middle" font-size="10.5" fill="${C.sub}">router picks 2 of 8 experts</text>`;
+    s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.sub}">each token uses a small slice</text>`;
+  }
+  s += `</svg>`;
+  return s;
+}
+
+// Token stream: prompt tokens, optional hidden reasoning tokens, then answer.
+function stream(reasoning, color){
+  const W=230, H=310;
+  let s = svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">the token stream it runs</text>`;
+  const bw=150, x=(W-bw)/2;
+  function block(y,h,fill,label,op){ return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="6" fill="${fill}" opacity="${op||1}"/><text x="${W/2}" y="${y+h/2+4}" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">${label}</text>`; }
+  if(!reasoning){
+    s += block(60,60,C.sub,'prompt',0.55);
+    s += `<text x="${W/2}" y="150" text-anchor="middle" font-size="16" fill="${C.sub}">↓</text>`;
+    s += block(165,60,color,'answer',0.9);
+    s += `<text x="${W/2}" y="255" text-anchor="middle" font-size="10.5" fill="${C.sub}">straight to the answer</text>`;
+  } else {
+    s += block(40,38,C.sub,'prompt',0.55);
+    s += `<text x="${W/2}" y="90" text-anchor="middle" font-size="13" fill="${C.sub}">↓</text>`;
+    // many small hidden reasoning tokens
+    const n=6, sy=112, sh=15, sg=5;
+    for(let i=0;i<n;i++){ s += `<rect x="${x}" y="${sy+i*(sh+sg)}" width="${bw}" height="${sh}" rx="3" fill="${color}" opacity="${(0.35+0.08*i).toFixed(2)}"/>`; }
+    s += `<text x="${W/2}" y="${sy-4}" text-anchor="middle" font-size="9.5" fill="${C.sub}">hidden reasoning tokens</text>`;
+    s += `<text x="${W/2}" y="${sy+n*(sh+sg)+10}" text-anchor="middle" font-size="14" fill="${C.sub}">↓</text>`;
+    s += block(sy+n*(sh+sg)+16,40,color,'answer',0.95);
+    s += `<text x="${W/2}" y="300" text-anchor="middle" font-size="10.5" fill="${C.sub}">writes to itself first</text>`;
+  }
+  s += `</svg>`;
+  return s;
+}
+
+/* ---- deep LLM-machinery diagram renderers ---- */
+
+// Bottleneck of batch-1 decode: raw math (FLOPs) vs memory traffic (weights + KV cache).
+// kind:'flops' shows a fat compute block barely used; 'bandwidth' shows a thin pipe choking a big memory.
+function bottleneck(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">generating one token at a time</text>`;
+  if(kind==='flops'){
+    // huge ALU grid, only a sliver active — compute sits idle
+    const cols=6, rows=7, cw=22, ch=22, gx=4, gy=4, sx=(W-(cols*cw+(cols-1)*gx))/2, sy=48;
+    let idx=0;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const on=idx<4; s+=`<rect x="${sx+c*(cw+gx)}" y="${sy+r*(ch+gy)}" width="${cw}" height="${ch}" rx="3" fill="${on?color:'#e7e1d5'}" opacity="${on?0.9:1}"/>`; idx++; }
+    s += `<text x="${W/2}" y="42" text-anchor="middle" font-size="9.5" fill="${C.sub}">compute units (mostly idle)</text>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">FLOPs to spare</text>`;
+  } else {
+    // big memory box, thin pipe to the chip: bandwidth is the choke
+    s += `<rect x="30" y="48" width="80" height="200" rx="8" fill="${color}" opacity="0.28"/>`;
+    s += `<text x="70" y="140" text-anchor="middle" font-size="9.5" fill="${C.ink}">weights</text>`;
+    s += `<text x="70" y="156" text-anchor="middle" font-size="9.5" fill="${C.ink}">+ KV cache</text>`;
+    s += `<text x="70" y="42" text-anchor="middle" font-size="9.5" fill="${C.sub}">memory (huge)</text>`;
+    // thin pipe
+    s += `<rect x="110" y="140" width="55" height="10" fill="${color}" opacity="0.85"/>`;
+    s += `<text x="137" y="132" text-anchor="middle" font-size="8.5" fill="${C.sub}">narrow pipe</text>`;
+    // chip
+    s += `<rect x="165" y="118" width="45" height="56" rx="6" fill="${color}" opacity="0.85"/>`;
+    s += `<text x="187" y="150" text-anchor="middle" font-size="9.5" fill="#fff" font-weight="700">chip</text>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">starved for data</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// Attention cost vs sequence length: same all-pairs graph, but n and the n^2 link count differ.
+// n = number of tokens. Reuses the ring-of-tokens idea from ctx() but labels the growth.
+function attnScale(n, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">every token attends to every token</text>`;
+  const cx=W/2, cy=158, R=n<=6?70:92;
+  const pts=[];
+  for(let i=0;i<n;i++){ const a=(-Math.PI/2)+i*(2*Math.PI/n); pts.push([cx+R*Math.cos(a), cy+R*Math.sin(a)]); }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){ s+=`<line x1="${pts[i][0].toFixed(1)}" y1="${pts[i][1].toFixed(1)}" x2="${pts[j][0].toFixed(1)}" y2="${pts[j][1].toFixed(1)}" stroke="${color}" stroke-width="0.7" opacity="0.3"/>`; }
+  for(let i=0;i<n;i++){ s+=`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="${n<=6?7:5.5}" fill="${color}"/>`; }
+  const edges = n*(n-1)/2;
+  s += `<text x="${W/2}" y="286" text-anchor="middle" font-size="10.5" fill="${C.sub}">${n} tokens</text>`;
+  s += `<text x="${W/2}" y="302" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${edges} attention links</text>`;
+  s += `</svg>`; return s;
+}
+
+// Quantization: same weight values, different bits per number. 'fp16' = smooth fine bar; 'int4' = coarse steps.
+function quant(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">the same weights, stored as numbers</text>`;
+  // a wavy "weight signal" quantized at two resolutions
+  s += `<line x1="30" y1="250" x2="205" y2="250" stroke="${C.line}" stroke-width="1.4"/>`;
+  const base=[[35,180],[60,120],[85,150],[110,95],[135,160],[160,110],[185,140]];
+  if(kind==='fp16'){
+    let d=`M35 180 Q 48 120 60 120 Q 73 150 85 150 Q 98 95 110 95 Q 123 160 135 160 Q 148 110 160 110 Q 173 140 185 140`;
+    s += `<path d="${d}" fill="none" stroke="${color}" stroke-width="3"/>`;
+    s += `<text x="${W/2}" y="285" text-anchor="middle" font-size="10.5" fill="${C.sub}">16 bits · fine detail</text>`;
+    s += `<text x="${W/2}" y="302" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">4× the memory</text>`;
+  } else {
+    // coarse staircase approximation
+    let d='M35 180 ';
+    for(let i=0;i<base.length;i++){ const y=Math.round(base[i][1]/22)*22; d+=`L${base[i][0]} ${y} L${base[i][0]+25} ${y} `; }
+    s += `<path d="${d}" fill="none" stroke="${color}" stroke-width="3"/>`;
+    s += `<text x="${W/2}" y="285" text-anchor="middle" font-size="10.5" fill="${C.sub}">4 bits · coarse steps</text>`;
+    s += `<text x="${W/2}" y="302" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">¼ the memory</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// Speculative decoding: 'solo' = big model emits one token per slow pass; 'spec' = small drafts a run, big verifies in one pass.
+function specDec(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='solo'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">big model, one token per pass</text>`;
+    for(let i=0;i<4;i++){ const y=50+i*52; s+=`<rect x="70" y="${y}" width="90" height="34" rx="6" fill="${color}" opacity="0.85"/>`; s+=`<text x="115" y="${y+22}" text-anchor="middle" font-size="10.5" fill="#fff" font-weight="700">pass ${i+1}</text>`; if(i<3) s+=`<text x="115" y="${y+46}" text-anchor="middle" font-size="12" fill="${C.sub}">↓</text>`; }
+    s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">4 slow passes → 4 tokens</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">small drafts, big verifies in one pass</text>`;
+    // draft row: 4 small guesses
+    for(let i=0;i<4;i++){ const x=32+i*46; s+=`<rect x="${x}" y="56" width="38" height="26" rx="4" fill="${C.sub}" opacity="0.5"/>`; s+=`<text x="${x+19}" y="73" text-anchor="middle" font-size="9" fill="#fff">draft</text>`; }
+    s += `<text x="${W/2}" y="48" text-anchor="middle" font-size="9.5" fill="${C.sub}">cheap draft model</text>`;
+    s += `<text x="${W/2}" y="104" text-anchor="middle" font-size="13" fill="${C.sub}">↓ one big pass checks all 4 ↓</text>`;
+    s += `<rect x="45" y="120" width="140" height="46" rx="8" fill="${color}" opacity="0.9"/>`;
+    s += `<text x="${W/2}" y="148" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">big model verifies</text>`;
+    // accepted run
+    for(let i=0;i<4;i++){ const x=32+i*46; s+=`<rect x="${x}" y="192" width="38" height="26" rx="4" fill="${color}" opacity="0.85"/>`; s+=`<text x="${x+19}" y="209" text-anchor="middle" font-size="9" fill="#fff">ok</text>`; }
+    s += `<text x="${W/2}" y="240" text-anchor="middle" font-size="9.5" fill="${C.sub}">accepted prefix</text>`;
+    s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">≈1 big pass → 4 tokens</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// Residual stream: 'replace' = each layer overwrites the vector; 'add' = layers read+add to one shared highway.
+function residual(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const n=4;
+  if(kind==='replace'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">each layer overwrites the last</text>`;
+    for(let i=0;i<n;i++){ const y=48+i*56; s+=`<rect x="65" y="${y}" width="100" height="38" rx="6" fill="${color}" opacity="${(0.5+0.14*i).toFixed(2)}"/>`; s+=`<text x="115" y="${y+23}" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">layer ${i+1}</text>`; if(i<n-1) s+=`<text x="115" y="${y+50}" text-anchor="middle" font-size="12" fill="${C.sub}">↓ replaces</text>`; }
+    s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">old meaning is lost</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">layers read + add to one stream</text>`;
+    // the highway (vertical spine)
+    s += `<line x1="60" y1="44" x2="60" y2="262" stroke="${color}" stroke-width="6" opacity="0.35"/>`;
+    s += `<text x="60" y="278" text-anchor="middle" font-size="9" fill="${C.sub}">residual</text>`;
+    s += `<text x="60" y="290" text-anchor="middle" font-size="9" fill="${C.sub}">stream</text>`;
+    for(let i=0;i<n;i++){ const y=54+i*52;
+      s+=`<rect x="105" y="${y}" width="90" height="34" rx="6" fill="${color}" opacity="0.85"/>`;
+      s+=`<text x="150" y="${y+22}" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">block ${i+1}</text>`;
+      // read arrow in, add arrow back (+)
+      s+=`<line x1="60" y1="${y+17}" x2="105" y2="${y+17}" stroke="${C.sub}" stroke-width="1.2" opacity="0.7"/>`;
+      s+=`<line x1="105" y1="${y+17}" x2="60" y2="${y+34}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 2"/>`;
+      s+=`<circle cx="60" cy="${y+34}" r="7" fill="none" stroke="${color}" stroke-width="1.4"/><text x="60" y="${y+38}" text-anchor="middle" font-size="10" fill="${C.ink}" font-weight="700">+</text>`;
+    }
+    s += `<text x="${W/2}" y="302" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">meaning accumulates</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// Distillation: 'scratch' = small model learns from hard one-hot labels; 'distilled' = small model learns from a big teacher's soft outputs.
+function distill(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='scratch'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">small model, trained from scratch</text>`;
+    // hard labels: a few stark one-hot bars
+    s += `<text x="${W/2}" y="60" text-anchor="middle" font-size="9.5" fill="${C.sub}">hard labels (0 or 1)</text>`;
+    for(let i=0;i<4;i++){ const x=40+i*40; const on=i===1; s+=`<rect x="${x}" y="${on?70:104}" width="26" height="${on?44:10}" rx="3" fill="${C.sub}" opacity="0.6"/>`; }
+    s += `<text x="${W/2}" y="150" text-anchor="middle" font-size="13" fill="${C.sub}">↓</text>`;
+    s += `<rect x="70" y="165" width="90" height="70" rx="8" fill="${color}" opacity="0.85"/>`;
+    s += `<text x="115" y="196" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">student</text>`;
+    s += `<text x="115" y="212" text-anchor="middle" font-size="9.5" fill="#fff">from scratch</text>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">only the bare answer</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">small model, taught by a big one</text>`;
+    // teacher
+    s += `<rect x="150" y="40" width="60" height="70" rx="8" fill="${C.sub}" opacity="0.45"/>`;
+    s += `<text x="180" y="72" text-anchor="middle" font-size="10" fill="${C.ink}" font-weight="700">big</text>`;
+    s += `<text x="180" y="86" text-anchor="middle" font-size="10" fill="${C.ink}" font-weight="700">teacher</text>`;
+    // soft labels: graded bars
+    s += `<text x="80" y="60" text-anchor="middle" font-size="9.5" fill="${C.sub}">soft targets</text>`;
+    const hts=[26,44,18,12];
+    for(let i=0;i<4;i++){ const x=32+i*30; s+=`<rect x="${x}" y="${110-hts[i]}" width="20" height="${hts[i]}" rx="3" fill="${color}" opacity="0.7"/>`; }
+    s += `<line x1="150" y1="90" x2="112" y2="95" stroke="${C.sub}" stroke-width="1.2" opacity="0.6"/>`;
+    s += `<text x="${W/2}" y="150" text-anchor="middle" font-size="13" fill="${C.sub}">↓ richer signal ↓</text>`;
+    s += `<rect x="70" y="165" width="90" height="70" rx="8" fill="${color}" opacity="0.9"/>`;
+    s += `<text x="115" y="196" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">student</text>`;
+    s += `<text x="115" y="212" text-anchor="middle" font-size="9.5" fill="#fff">distilled</text>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">learns how the big one thinks</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// Tokenization: 'chars' = model sees each letter; 'tokens' = model sees chunky subword tokens (the reality).
+function tokenize(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const word='strawberry';
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">how the model reads a word</text>`;
+  s += `<text x="${W/2}" y="52" text-anchor="middle" font-size="15" fill="${C.ink}" font-weight="700" letter-spacing="1">${word}</text>`;
+  if(kind==='chars'){
+    // each letter its own cell
+    const letters=word.split(''); const cw=19, tot=letters.length*cw, sx=(W-tot)/2;
+    letters.forEach((ch,i)=>{ const x=sx+i*cw; s+=`<rect x="${x}" y="120" width="${cw-3}" height="30" rx="3" fill="${color}" opacity="0.85"/>`; s+=`<text x="${x+(cw-3)/2}" y="141" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">${ch}</text>`; });
+    s += `<text x="${W/2}" y="180" text-anchor="middle" font-size="10" fill="${C.sub}">${letters.length} letters, each visible</text>`;
+    s += `<text x="${W/2}" y="230" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">could count the r's</text>`;
+  } else {
+    // chunked into subword tokens
+    const toks=[['st',2],['raw',3],['berry',5]]; const cw=13; let sx=(W - toks.reduce((a,t)=>a+t[1]*cw+10,0))/2;
+    toks.forEach(([t,len])=>{ const w=len*cw; s+=`<rect x="${sx}" y="120" width="${w}" height="30" rx="4" fill="${color}" opacity="0.85"/>`; s+=`<text x="${sx+w/2}" y="141" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">${t}</text>`; sx+=w+10; });
+    s += `<text x="${W/2}" y="180" text-anchor="middle" font-size="10" fill="${C.sub}">3 tokens, letters fused inside</text>`;
+    s += `<text x="${W/2}" y="230" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">can't see the r's directly</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+// GQA vs MHA: KV-cache size. 'mha' = one KV head per query head (big cache); 'gqa' = query heads share few KV heads (small cache).
+function gqa(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const qN=8;
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">query heads ↔ key/value heads</text>`;
+  // query heads row (top)
+  const qw=20, qtot=qN*qw+ (qN-1)*4, qsx=(W-qtot)/2, qy=44;
+  for(let i=0;i<qN;i++){ const x=qsx+i*(qw+4); s+=`<rect x="${x}" y="${qy}" width="${qw}" height="20" rx="3" fill="${C.sub}" opacity="0.55"/>`; }
+  s += `<text x="${W/2}" y="${qy-6}" text-anchor="middle" font-size="9" fill="${C.sub}">8 query heads</text>`;
+  if(kind==='mha'){
+    // 8 KV heads, one per query — big cache
+    const kN=8, kw=20, ktot=kN*kw+(kN-1)*4, ksx=(W-ktot)/2, ky=170;
+    for(let i=0;i<kN;i++){ const x=ksx+i*(kw+4); s+=`<rect x="${x}" y="${ky}" width="${kw}" height="46" rx="4" fill="${color}" opacity="0.85"/>`; s+=`<line x1="${qsx+i*(qw+4)+qw/2}" y1="${qy+20}" x2="${x+kw/2}" y2="${ky}" stroke="${color}" stroke-width="0.9" opacity="0.5"/>`; }
+    s += `<text x="${W/2}" y="${ky+62}" text-anchor="middle" font-size="9" fill="${C.sub}">8 KV heads (one each)</text>`;
+    s += `<text x="${W/2}" y="288" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">big KV cache</text>`;
+  } else {
+    // 2 KV heads shared by groups of 4 — small cache
+    const kN=2, kw=40, ktot=kN*kw+(kN-1)*30, ksx=(W-ktot)/2, ky=170;
+    for(let i=0;i<kN;i++){ const x=ksx+i*(kw+30); s+=`<rect x="${x}" y="${ky}" width="${kw}" height="46" rx="4" fill="${color}" opacity="0.9"/>`;
+      // 4 query heads feed each KV head
+      for(let j=0;j<4;j++){ const qi=i*4+j; s+=`<line x1="${qsx+qi*(qw+4)+qw/2}" y1="${qy+20}" x2="${x+kw/2}" y2="${ky}" stroke="${color}" stroke-width="0.9" opacity="0.5"/>`; }
+    }
+    s += `<text x="${W/2}" y="${ky+62}" text-anchor="middle" font-size="9" fill="${C.sub}">2 KV heads (shared)</text>`;
+    s += `<text x="${W/2}" y="288" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">small KV cache</text>`;
+  }
+  s += `</svg>`; return s;
+}
+
+/* ============================================================
+   ROUNDS  — each decomposes one lazy abstraction.
+   smart: 'A' or 'B' = the higher-end / more capable model.
+   ============================================================ */
+// difficulty: 1 warm-up · 2 ML-literate hard · 3 expert-brutal. Rounds play in this order.
+/* ============================================================
+   QUESTION BANK
+   The 30 questions live in questions.json — edit THAT file to add,
+   change, reorder, or reword questions (see README). The live site
+   fetches it. The embedded snapshot below is only an offline fallback
+   (used when opened as a single file); run `node build.js` to refresh it.
+   ============================================================ */
+const RENDER = { stack, moe, stream, bottleneck, attnScale, quant, specDec, residual, distill, tokenize, gqa, fit, flex, visionArch, ensemble, ddescent, embed, posenc, temp, knowledge, finetune, rag, batch, lrate, dropout, scaling, boundary, reg, prnet, landscape };
+/* __QUESTIONS_FALLBACK__ */
+const QUESTIONS_FALLBACK = {
+  "$schema_note": "Which Brain? question bank. Edit/add/reorder items in `questions`. See README for the field guide. diff: 1 warm-up, 2 hard/machinery, 3 expert. tier:'machinery' shows the teal MACHINERY tag. A is drawn in blue, B in orange. smart = which side is correct ('A' or 'B'). render+args map to a diagram function in the game.",
+  "version": 1,
+  "questions": [
+    {
+      "id": 1,
+      "concept": "\"Bigger\"",
+      "diff": 1,
+      "prompt": "Same parameters. Which is the stronger model?",
+      "smart": "A",
+      "A": {
+        "spec": "Deep",
+        "cap": "A tall stack of many thin layers",
+        "render": "stack",
+        "args": [
+          24,
+          44
+        ]
+      },
+      "B": {
+        "spec": "Wide",
+        "cap": "A short stack of a few fat layers",
+        "render": "stack",
+        "args": [
+          8,
+          120
+        ]
+      },
+      "verdictLabel": "HIGHER-END",
+      "bd": [
+        "Both look equally 'big', and the wide one even looks chunkier.",
+        "But depth usually buys more capability than width. Each layer is another round of refining meaning, so a deeper stack composes more abstract structure from the same parameters.",
+        "'More parameters' is not the honest axis. The arrangement, especially depth, is what turns size into capability."
+      ],
+      "caveat": "Holds up to a point: past very deep stacks the gains flatten and training gets unstable, so real models balance depth and width.",
+      "cost": "Same parameter count, similar cost per token. The deeper one is smarter for the same price.",
+      "terms": [
+        [
+          "parameters",
+          "the learned numbers inside a model, often billions of them. 'Model size' usually means this count."
+        ],
+        [
+          "depth vs width",
+          "depth = how many layers are stacked; width = how big each layer is. Same total parameters can be arranged as few-and-wide or many-and-thin."
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "concept": "\"Thinking\"",
+      "diff": 1,
+      "prompt": "Same model. Which one is \"thinking\"?",
+      "smart": "B",
+      "A": {
+        "spec": "Direct",
+        "cap": "Prompt goes straight to an answer",
+        "render": "stream",
+        "args": [
+          false
+        ]
+      },
+      "B": {
+        "spec": "Reasoning",
+        "cap": "Prompt writes hidden steps, then answers",
+        "render": "stream",
+        "args": [
+          true
+        ]
+      },
+      "verdictLabel": "IS THINKING",
+      "bd": [
+        "There is no separate 'thinking' organ. It's the same stack run over more tokens.",
+        "B generates hidden reasoning tokens before its answer; each runs the full attention + feedforward pass and feeds into the next.",
+        "So 'thinking' is literally more forward passes, the same brain made to write to itself first. It buys capability by spending tokens."
+      ],
+      "caveat": "More is not always better: past a point extra reasoning tokens add cost without accuracy, and can talk the model out of a right answer.",
+      "cost": "Where cost hides: a 'thinking' answer can burn many times the tokens of a direct one, so the smarter-looking call is often the expensive one.",
+      "terms": [
+        [
+          "forward pass",
+          "one run of the model to produce the next token. The model generates one token per pass, then feeds it back in for the next."
+        ],
+        [
+          "reasoning tokens",
+          "extra hidden text the model writes to itself before the final answer (the 'chain of thought'). Each one is another forward pass, which is why 'thinking' costs more."
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "concept": "Bottleneck",
+      "diff": 2,
+      "prompt": "Generating a long answer. What actually limits speed?",
+      "smart": "B",
+      "A": {
+        "spec": "Compute",
+        "cap": "Lots of math units, mostly idle",
+        "render": "bottleneck",
+        "args": [
+          "flops"
+        ]
+      },
+      "B": {
+        "spec": "Memory",
+        "cap": "Data crawls through a narrow pipe to the chip",
+        "render": "bottleneck",
+        "args": [
+          "bandwidth"
+        ]
+      },
+      "verdictLabel": "THE REAL LIMIT",
+      "bd": [
+        "It feels like generation is a math problem, so more FLOPs should be the limit. It usually isn't.",
+        "Each new token does little math but must re-read the whole model plus a KV cache that grows with the conversation. The chip sits waiting on memory, not compute, so decoding is memory-bandwidth-bound.",
+        "That is why long chats slow down and cost more per token: the cache you drag along, not the arithmetic, is the choke."
+      ],
+      "caveat": "Regime: this is single-stream (batch-1) decoding. Prefill (reading the prompt) is compute-bound, and at large batch sizes decode becomes compute-bound too, because the weights are read once and shared across many sequences.",
+      "cost": "Where cost hides: per-token cost climbs as context grows, because the KV cache you re-read each step keeps getting bigger.",
+      "terms": [
+        [
+          "FLOPs",
+          "floating-point operations, i.e. the raw arithmetic a chip does. 'Compute-bound' means the math is the limit."
+        ],
+        [
+          "KV cache",
+          "the keys and values (K, V) the model has already computed for every earlier token, kept in memory so it doesn't recompute them. It grows with every token in the conversation."
+        ],
+        [
+          "memory bandwidth",
+          "how fast the chip can read data from memory. 'Memory-bound' means it's waiting on data movement, not on math."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 4,
+      "concept": "Attention cost",
+      "diff": 2,
+      "prompt": "Double the context. Which one costs disproportionately more?",
+      "smart": "B",
+      "A": {
+        "spec": "Short",
+        "cap": "Few tokens, few links between them",
+        "render": "attnScale",
+        "args": [
+          5
+        ]
+      },
+      "B": {
+        "spec": "Long",
+        "cap": "Twice the tokens, far more links",
+        "render": "attnScale",
+        "args": [
+          10
+        ]
+      },
+      "verdictLabel": "COSTS MORE",
+      "bd": [
+        "Twice the tokens sounds like twice the work. For attention it's closer to four times.",
+        "Every token attends to every other token, so the number of attention links grows with the square of the length. Doubling the context roughly quadruples that term.",
+        "So context length is not a linear cost. It's the part of the bill that grows fastest as inputs get longer."
+      ],
+      "caveat": "Regime: this is the attention term, which dominates only at long sequences. At short lengths the feedforward layers dominate instead. FlashAttention removes the quadratic memory but the compute is still quadratic; sparse and linear-attention variants change the math itself.",
+      "cost": "The lesson: attention compute scales with length squared, so stuffing more into the context window gets expensive faster than it looks.",
+      "terms": [
+        [
+          "attention",
+          "the step where each token looks at every other token to decide what's relevant. That all-pairs comparison is what grows with length."
+        ],
+        [
+          "context",
+          "all the text the model is holding at once (your prompt plus what it has written so far), measured in tokens. The 'context window' is the max it can hold."
+        ],
+        [
+          "quadratic",
+          "cost that grows with the square of the size: double the input, roughly 4× the work; triple it, ~9×."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 5,
+      "concept": "Quantization",
+      "diff": 2,
+      "prompt": "Same weights, fewer bits each. Which is cheaper at near-equal quality?",
+      "smart": "B",
+      "A": {
+        "spec": "16-bit",
+        "cap": "Each weight stored in fine detail",
+        "render": "quant",
+        "args": [
+          "fp16"
+        ]
+      },
+      "B": {
+        "spec": "4-bit",
+        "cap": "Each weight stored in coarse steps",
+        "render": "quant",
+        "args": [
+          "int4"
+        ]
+      },
+      "verdictLabel": "CHEAPER",
+      "bd": [
+        "Cutting precision to a quarter sounds like it should wreck the model. For big models it barely dents quality.",
+        "Weights are redundant, so rounding them to 4 bits (with an outlier-aware scheme) keeps almost all the capability while cutting memory and bandwidth to a fraction. Since decoding is memory-bound, smaller weights mean faster, cheaper serving.",
+        "So per-weight precision matters far less than you'd think. Parameter count carries the capability; the bits are largely slack."
+      ],
+      "caveat": "Regime: weight-only quantization of large models down to about 4 bits. It flips below ~4 bits, when quantizing activations too, or on small models, where degradation grows fast. Quantization-aware training recovers what naive rounding loses.",
+      "cost": "The win: near-equal quality at roughly a quarter of the memory, so the cheaper-to-serve model is the low-precision one.",
+      "terms": [
+        [
+          "weights",
+          "the millions-to-billions of numbers the model learned during training. They are what gets stored and loaded to run it."
+        ],
+        [
+          "bits / precision",
+          "how many binary digits each weight is stored with. More bits = finer detail but more memory. 16-bit vs 4-bit is fine detail vs coarse steps."
+        ],
+        [
+          "quantization",
+          "rounding those weights to fewer bits to shrink the model, trading a little precision for a lot less memory."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 6,
+      "concept": "Speculative decoding",
+      "diff": 2,
+      "prompt": "Which is faster with NO change to the output distribution?",
+      "smart": "B",
+      "A": {
+        "spec": "Solo",
+        "cap": "Big model makes one token per slow pass",
+        "render": "specDec",
+        "args": [
+          "solo"
+        ]
+      },
+      "B": {
+        "spec": "Drafted",
+        "cap": "Small model drafts, big model checks all at once",
+        "render": "specDec",
+        "args": [
+          "spec"
+        ]
+      },
+      "verdictLabel": "FASTER, SAME OUTPUT",
+      "bd": [
+        "Adding a second model sounds like more work, not less. Here it's a free speed-up.",
+        "A small draft model guesses several tokens; the big model checks all of them in one parallel pass and keeps the correct prefix. A rejection rule makes the result provably match sampling from the big model alone.",
+        "So you spend cheap draft passes to save expensive big-model passes, and the output distribution is unchanged."
+      ],
+      "caveat": "Regime: the exact-distribution guarantee holds for standard speculative sampling at matched settings, and it speeds things up when the big model is memory-bound and draft acceptance is high. It helps little when the draft disagrees often or the big model is already compute-bound (large batch).",
+      "cost": "The catch to know: it's identical in distribution, not the same token every time, and it only pays off when the draft is right often enough.",
+      "terms": [
+        [
+          "draft model",
+          "a small, fast model that cheaply guesses the next few tokens for the big model to check."
+        ],
+        [
+          "forward pass",
+          "one run of the model over the input to produce output. The big model normally needs one slow pass per token; here it checks several guesses in a single pass."
+        ],
+        [
+          "output distribution",
+          "the probabilities the model assigns to each possible next token. 'Same distribution' means the results are statistically identical to the big model, even if any single sample differs."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 7,
+      "concept": "Residual stream",
+      "diff": 2,
+      "prompt": "How does a transformer layer treat the representation?",
+      "smart": "A",
+      "A": {
+        "spec": "Add",
+        "cap": "Each layer adds onto one shared line",
+        "render": "residual",
+        "args": [
+          "add"
+        ]
+      },
+      "B": {
+        "spec": "Replace",
+        "cap": "Each layer overwrites the last",
+        "render": "residual",
+        "args": [
+          "replace"
+        ]
+      },
+      "verdictLabel": "HOW IT WORKS",
+      "bd": [
+        "It's natural to picture each layer transforming the input into a new thing and passing it on. That's not the mechanism.",
+        "Every block reads from a shared residual stream and adds its output back, so information flows down a highway and each layer writes an incremental update rather than replacing what came before.",
+        "That additive structure is what lets very deep stacks train at all, and lets features survive from early layers to late ones."
+      ],
+      "caveat": "Nuance: the stream isn't literally untouched. Normalization sits in the read path, and blocks read and write particular subspaces. The 'highway' is the residual pathway, working alongside normalization, not the sole reason depth trains.",
+      "cost": "Why it matters: depth adds capability precisely because layers refine a shared representation, instead of each one starting over.",
+      "terms": [
+        [
+          "representation",
+          "the model's internal numeric summary of the text so far, a big vector of numbers that gets refined layer by layer."
+        ],
+        [
+          "residual stream",
+          "the running representation that every layer reads from and adds its update back into, rather than replacing. Think of it as a shared highway the layers write onto."
+        ],
+        [
+          "layer / block",
+          "one processing stage of the transformer (attention plus a small network). Models stack many of them; 'depth' is how many."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 8,
+      "concept": "Distillation",
+      "diff": 2,
+      "prompt": "Same size. Which small model ends up stronger?",
+      "smart": "B",
+      "A": {
+        "spec": "Scratch",
+        "cap": "Learns only from right/wrong labels",
+        "render": "distill",
+        "args": [
+          "scratch"
+        ]
+      },
+      "B": {
+        "spec": "Taught",
+        "cap": "Learns from a big model's full hints",
+        "render": "distill",
+        "args": [
+          "distilled"
+        ]
+      },
+      "verdictLabel": "STRONGER",
+      "bd": [
+        "Same parameters should mean same ceiling. The training signal breaks the tie by a lot.",
+        "A student trained to match a big teacher's soft outputs gets a far richer signal than one-hot labels, so it learns the teacher's structure and beats an identical model trained from scratch.",
+        "So a small distilled model punches above its parameter count. Parameter count alone keeps misleading you about capability."
+      ],
+      "caveat": "Regime: the student is still bounded by its own capacity and by teacher quality. Distillation narrows the gap to the teacher, it doesn't erase it, and gains shrink as the capacity gap widens or the teacher is weak.",
+      "cost": "The lesson: how a model was trained can matter as much as its size, so cheap-to-run distilled models often outperform their weight class.",
+      "terms": [
+        [
+          "distillation",
+          "training a small 'student' model to copy a big 'teacher' model, so the student inherits much of the teacher's skill at a fraction of the size."
+        ],
+        [
+          "hard labels (one-hot)",
+          "training targets that say only the single right answer, nothing about the near-misses. Just '1' for correct, '0' for everything else."
+        ],
+        [
+          "soft targets",
+          "the teacher's full probabilities across all answers, which reveal how it weighs close alternatives. That extra nuance is the richer signal the student learns from."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 9,
+      "concept": "Tokenization",
+      "diff": 2,
+      "prompt": "Why does a strong model miscount the r’s in \"strawberry\"?",
+      "smart": "B",
+      "A": {
+        "spec": "Letters",
+        "cap": "Sees every individual letter",
+        "render": "tokenize",
+        "args": [
+          "chars"
+        ]
+      },
+      "B": {
+        "spec": "Tokens",
+        "cap": "Sees word-chunks, letters hidden inside",
+        "render": "tokenize",
+        "args": [
+          "tokens"
+        ]
+      },
+      "verdictLabel": "THE REAL REASON",
+      "bd": [
+        "It looks like a reasoning failure, as if the model just isn't smart enough to count to three.",
+        "But the model never sees letters. It reads subword tokens, so 'strawberry' arrives as a few chunks with the letters fused inside, and the per-letter structure is hidden from it.",
+        "So it's a representation problem, not an intelligence one. The thing you asked it to count isn't in what it sees."
+      ],
+      "caveat": "Nuance: it's a headwind, not a wall. Models can still spell or count via memorized spellings, chain-of-thought, or tools, and byte or character-level models sidestep the issue entirely.",
+      "cost": "Why it matters: token boundaries also make rare words and some languages cost more tokens, so 'the input' is not the characters you typed.",
+      "terms": [
+        [
+          "token",
+          "the unit a model actually reads: usually a word-chunk, not a single letter. 'strawberry' might be just 3 tokens like st + raw + berry."
+        ],
+        [
+          "subword",
+          "a piece of a word. Tokenizers split rare or long words into several subword tokens, which is why letters get fused inside a chunk."
+        ],
+        [
+          "tokenization",
+          "the step that chops your text into tokens before the model sees it. The model never sees raw letters, only these pieces."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 10,
+      "concept": "GQA",
+      "diff": 2,
+      "prompt": "Which shrinks the KV-cache memory with almost no quality hit?",
+      "smart": "B",
+      "A": {
+        "spec": "MHA",
+        "cap": "Every query gets its own memory head",
+        "render": "gqa",
+        "args": [
+          "mha"
+        ]
+      },
+      "B": {
+        "spec": "GQA",
+        "cap": "Queries share a few memory heads",
+        "render": "gqa",
+        "args": [
+          "gqa"
+        ]
+      },
+      "verdictLabel": "SMALLER CACHE",
+      "bd": [
+        "Giving every query head its own key/value head sounds more expressive, so it feels like the better design.",
+        "But the KV cache is what eats memory on long contexts. Letting groups of query heads share a smaller set of KV heads shrinks that cache a lot, with only a small quality cost.",
+        "So the smarter serving choice is the one that shares, which is why modern long-context models can be served affordably."
+      ],
+      "caveat": "Regime: this is an inference memory and bandwidth win, not a training or quality win. MQA (one KV head total) saves the most but loses a bit more quality; GQA is the middle ground with a small-but-nonzero gap versus full MHA.",
+      "cost": "The win: a much smaller KV cache means longer contexts and higher throughput on the same hardware, at near-equal quality.",
+      "terms": [
+        [
+          "query / key / value heads",
+          "attention runs in parallel 'heads'. Each query head asks what's relevant; the key/value (KV) heads hold what gets looked up. Only the KV part has to be cached."
+        ],
+        [
+          "KV cache",
+          "the stored keys and values for every earlier token. It's the main thing eating memory on long contexts, so shrinking it is the whole game here."
+        ],
+        [
+          "MHA vs GQA",
+          "MHA (multi-head attention) gives every query head its own KV head, so a big cache. GQA (grouped-query attention) makes groups of query heads share a few KV heads, so a much smaller cache."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 11,
+      "concept": "Embeddings",
+      "diff": 2,
+      "prompt": "Which embedding actually learned meaning?",
+      "smart": "A",
+      "A": {
+        "spec": "Clustered",
+        "cap": "Similar words grouped together",
+        "render": "embed",
+        "args": [
+          "clustered"
+        ]
+      },
+      "B": {
+        "spec": "Scattered",
+        "cap": "Words placed with no pattern",
+        "render": "embed",
+        "args": [
+          "random"
+        ]
+      },
+      "verdictLabel": "LEARNED MEANING",
+      "bd": [
+        "Both turn words into points. Only one arranged them meaningfully.",
+        "A trained embedding places words so similar ones land near each other; a random map spreads them with no structure, so distance means nothing.",
+        "So 'understands relationships' is really just: similar things ended up close."
+      ],
+      "caveat": "'Nearby' means similar in usage, not truly understood: antonyms like hot/cold and even social biases cluster together too.",
+      "cost": "Good embeddings are what make search, clustering and retrieval work at all.",
+      "terms": [
+        [
+          "embedding",
+          "turning each word into a vector (a point in space) so the model can do math on meaning."
+        ],
+        [
+          "clusters",
+          "groups of nearby points; similar words landing close is the sign the space learned structure."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 12,
+      "concept": "Positional encoding",
+      "diff": 2,
+      "prompt": "Attention is order-blind. Which one knows word order?",
+      "smart": "A",
+      "A": {
+        "spec": "Ordered",
+        "cap": "Each word tagged with its position",
+        "render": "posenc",
+        "args": [
+          "ordered"
+        ]
+      },
+      "B": {
+        "spec": "Bag",
+        "cap": "Words in a jumble, no order",
+        "render": "posenc",
+        "args": [
+          "unordered"
+        ]
+      },
+      "verdictLabel": "KNOWS ORDER",
+      "bd": [
+        "Plain attention sees a set, not a sequence: 'dog bites man' and 'man bites dog' look identical to it.",
+        "So position must be injected. The ordered one stamps each token with its place; the other is just a bag of words.",
+        "Without a position signal, word order, and most of grammar, is invisible to the model."
+      ],
+      "caveat": "A causal (left-to-right) mask already leaks some order, so decoder LLMs can partly learn position even without an explicit encoding.",
+      "cost": "Positional encoding is what lets a fixed attention block handle sequences at all.",
+      "terms": [
+        [
+          "permutation-invariant",
+          "gives the same result no matter the input order; bare attention is like this, which is why order must be added."
+        ],
+        [
+          "positional encoding",
+          "extra signal added to each token marking where it sits in the sequence."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 13,
+      "concept": "Temperature",
+      "diff": 2,
+      "prompt": "Same odds, one dial moved. Which is more predictable?",
+      "smart": "A",
+      "A": {
+        "spec": "Low temp",
+        "cap": "Odds spike on one top word",
+        "render": "temp",
+        "args": [
+          "sharp"
+        ]
+      },
+      "B": {
+        "spec": "High temp",
+        "cap": "Odds spread evenly across words",
+        "render": "temp",
+        "args": [
+          "flat"
+        ]
+      },
+      "verdictLabel": "MORE PREDICTABLE",
+      "bd": [
+        "These are the same next-token odds at two temperatures.",
+        "Low temperature sharpens the distribution toward the top token, so output is more deterministic; high temperature flattens it, so sampling turns random and 'creative'.",
+        "So one dial trades predictability for variety, without changing what the model knows."
+      ],
+      "caveat": "Temperature only reshapes peakiness, never the ranking: at 0 it's pure greedy/argmax, very high approaches uniform. Top-k/top-p clip on top of it.",
+      "cost": "Turn it down for facts and code; turn it up for brainstorming and variety.",
+      "terms": [
+        [
+          "logits / softmax",
+          "the raw per-token scores, turned into probabilities; temperature divides the scores before that step."
+        ],
+        [
+          "temperature",
+          "a knob on randomness: low = sharp and deterministic, high = flat and varied."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 14,
+      "concept": "Knowledge",
+      "diff": 2,
+      "prompt": "A fact born after training. Which model can use it?",
+      "smart": "B",
+      "A": {
+        "spec": "Weights",
+        "cap": "Facts locked in during training",
+        "render": "knowledge",
+        "args": [
+          "weights"
+        ]
+      },
+      "B": {
+        "spec": "Context",
+        "cap": "Facts handed over at run time",
+        "render": "knowledge",
+        "args": [
+          "context"
+        ]
+      },
+      "verdictLabel": "USES NEW FACTS",
+      "bd": [
+        "Facts baked into the weights are frozen the moment training ends.",
+        "Anything placed in the context window at run time is read fresh, with no retraining, so only context can carry a fact that didn't exist during training.",
+        "So 'the model knows X' splits into two very different things: learned once, versus handed over right now."
+      ],
+      "caveat": "Context is temporary, token-limited and paid per call; weights hold far more knowledge cheaply. Real systems lean on both.",
+      "cost": "This is why you can paste a new document and get answers about it with no fine-tuning.",
+      "terms": [
+        [
+          "weights",
+          "the knowledge baked in during training; fixed until you retrain."
+        ],
+        [
+          "context window",
+          "the text you hand the model at run time, read fresh every call, so it can carry brand-new facts."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 15,
+      "concept": "Fine-tuning",
+      "diff": 2,
+      "prompt": "Customizing a big model. Which is far cheaper?",
+      "smart": "B",
+      "A": {
+        "spec": "Full",
+        "cap": "Retrains the whole model",
+        "render": "finetune",
+        "args": [
+          "full"
+        ]
+      },
+      "B": {
+        "spec": "Adapter",
+        "cap": "Freezes the model, adds a tiny piece",
+        "render": "finetune",
+        "args": [
+          "adapter"
+        ]
+      },
+      "verdictLabel": "CHEAPER TO ADAPT",
+      "bd": [
+        "Full fine-tuning updates every weight, so it's costly to train and produces a whole new copy.",
+        "LoRA freezes the base model and trains a tiny add-on, cutting training memory and shrinking the result to megabytes, at often-comparable quality.",
+        "So customizing a model rarely means retraining all of it."
+      ],
+      "caveat": "Full fine-tuning can still win under a large domain shift or heavy new-knowledge injection; the small adapter has limited capacity.",
+      "cost": "LoRA is why teams ship dozens of task-specific variants of one base model cheaply.",
+      "terms": [
+        [
+          "fine-tuning",
+          "further training a pretrained model on your own task or data."
+        ],
+        [
+          "LoRA (adapter)",
+          "training small extra matrices while freezing the base, so customization is cheap and the artifact is tiny."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 16,
+      "concept": "RAG",
+      "diff": 2,
+      "prompt": "A private doc it never trained on. Which can answer?",
+      "smart": "B",
+      "A": {
+        "spec": "Memory",
+        "cap": "Answers from memory alone",
+        "render": "rag",
+        "args": [
+          "memory"
+        ]
+      },
+      "B": {
+        "spec": "Retrieval",
+        "cap": "Pulls in documents, then answers",
+        "render": "rag",
+        "args": [
+          "retrieval"
+        ]
+      },
+      "verdictLabel": "HANDLES NEW FACTS",
+      "bd": [
+        "A model answering from its weights alone can't know anything past training, or anything private.",
+        "RAG retrieves the relevant documents at query time and answers from them, so fresh or proprietary facts need no retraining.",
+        "So 'closed book' versus 'open book' is the real difference, not model size."
+      ],
+      "caveat": "RAG is only as good as what it retrieves: bad or missing hits still produce confident, wrong answers.",
+      "cost": "Retrieval is how assistants cite your docs and stay current without constant retraining.",
+      "terms": [
+        [
+          "RAG",
+          "retrieval-augmented generation: fetch relevant documents first, then answer using them."
+        ],
+        [
+          "parametric memory",
+          "what the model stored in its weights during training; frozen and blind to anything new or private."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 17,
+      "concept": "Batching",
+      "diff": 2,
+      "prompt": "Same GPU. Which serves more users per dollar?",
+      "smart": "B",
+      "A": {
+        "spec": "One",
+        "cap": "One request, GPU mostly idle",
+        "render": "batch",
+        "args": [
+          "single"
+        ]
+      },
+      "B": {
+        "spec": "Batched",
+        "cap": "Many requests packed onto the GPU",
+        "render": "batch",
+        "args": [
+          "batched"
+        ]
+      },
+      "verdictLabel": "MORE PER DOLLAR",
+      "bd": [
+        "Generating for one request barely uses the GPU: it reloads the whole model just to make a single token.",
+        "Batching many requests reuses that one weight-load across all of them, multiplying throughput per dollar, because decode is memory-bound, not compute-bound.",
+        "So the busy GPU packed with requests is the efficient one."
+      ],
+      "caveat": "Batching trades some per-request latency for throughput, and only helps until the batch turns compute-bound or the KV cache fills memory.",
+      "cost": "This is the core trick behind cheap API pricing: your request rides along with many others.",
+      "terms": [
+        [
+          "batching",
+          "running many requests through the GPU together so one weight-load serves them all."
+        ],
+        [
+          "throughput vs latency",
+          "throughput = total tokens/sec across users; latency = the wait for your one request. Batching raises the first, slightly costs the second."
+        ]
+      ],
+      "tier": "machinery"
+    },
+    {
+      "id": 18,
+      "concept": "Overfitting",
+      "diff": 2,
+      "prompt": "Which model GENERALIZES better to new data?",
+      "smart": "B",
+      "A": {
+        "spec": "Tight",
+        "cap": "Curve bends through every dot",
+        "render": "fit",
+        "args": [
+          "overfit"
+        ]
+      },
+      "B": {
+        "spec": "Loose",
+        "cap": "Straight line ignores the wiggles",
+        "render": "fit",
+        "args": [
+          "smooth"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "Perfect training fit looks like the better model. Usually it's the worse one.",
+        "Bending through every point means memorising the sample's noise, so the gap between training and test error blows up. The looser fit captures only the reproducible signal, which is what transfers.",
+        "The lesson: low training error is not the goal. The train-to-test gap is."
+      ],
+      "caveat": "Flips when the perfect fit comes from a benign inductive bias (interpolation can generalise, see the last round), or when B is simply underfit and can't represent the signal at all.",
+      "cost": "Chasing zero training error wastes compute making a model worse. Regularise or stop early instead.",
+      "terms": [
+        [
+          "generalize",
+          "perform well on new, unseen data, not just the examples it trained on. That's the actual goal."
+        ],
+        [
+          "training vs test error",
+          "training error is mistakes on the data it learned from; test error is mistakes on fresh data. A big gap means it memorized rather than learned."
+        ],
+        [
+          "overfitting",
+          "when a model hugs the training data so tightly it captures the random noise, so it looks perfect in training but fails on new data."
+        ]
+      ]
+    },
+    {
+      "id": 19,
+      "concept": "Bias–variance",
+      "diff": 2,
+      "prompt": "Tiny, noisy dataset. Which has lower TEST error?",
+      "smart": "B",
+      "A": {
+        "spec": "Flexible",
+        "cap": "Wiggly fit on very few points",
+        "render": "flex",
+        "args": [
+          "flex"
+        ]
+      },
+      "B": {
+        "spec": "Simple",
+        "cap": "Straight fit on very few points",
+        "render": "flex",
+        "args": [
+          "simple"
+        ]
+      },
+      "verdictLabel": "LOWER TEST ERROR",
+      "bd": [
+        "The flexible model can fit anything, so it feels more capable. On tiny noisy data it loses.",
+        "With few samples and real noise, a flexible model has high variance: it chases the noise and swings wildly with the sample drawn. The simple model trades a little bias for a big drop in variance, and variance dominates the error here.",
+        "So the right tool is the smaller model. Capability you can't feed is a liability, not an asset."
+      ],
+      "caveat": "'Capacity' means effective capacity: a heavily regularised or pretrained big model behaves as low-capacity and can win even on tiny data. And if the true signal is genuinely intricate, the simple model's bias dominates instead.",
+      "cost": "Small data plus a giant model is money spent to overfit. Match model size to data size.",
+      "terms": [
+        [
+          "capacity",
+          "how flexible a model is, i.e. how complex a pattern it can bend to fit. High-capacity models can fit almost anything, which is not always good."
+        ],
+        [
+          "variance",
+          "how much the model's fit swings depending on which random sample it saw. High variance means it chases noise and is unstable on small data."
+        ],
+        [
+          "bias",
+          "error from a model being too simple to capture the real pattern. The tradeoff: simple models have more bias but less variance."
+        ]
+      ]
+    },
+    {
+      "id": 20,
+      "concept": "Right tool",
+      "diff": 2,
+      "prompt": "Small image dataset, strong locality. Which wins?",
+      "smart": "A",
+      "A": {
+        "spec": "CNN",
+        "cap": "Scans small local windows",
+        "render": "visionArch",
+        "args": [
+          "cnn"
+        ]
+      },
+      "B": {
+        "spec": "Transformer",
+        "cap": "Links every patch to every patch",
+        "render": "visionArch",
+        "args": [
+          "vit"
+        ]
+      },
+      "verdictLabel": "WINS HERE",
+      "bd": [
+        "Transformers beat CNNs at the frontier, so the ViT looks like the safe pick. Here it isn't.",
+        "Convolution bakes in locality and translation equivariance, priors that match images, so a CNN needs far less data. A plain ViT has weak spatial bias and must learn locality from data, which needs large-scale pretraining to pay off.",
+        "So 'better architecture' depends on data scale. The inductive bias that fits the problem wins when data is scarce."
+      ],
+      "caveat": "Flips with scale: a ViT pretrained on large data (or a locality-aware transformer like Swin) matches or beats CNNs. The real axis is inductive bias versus data, not conv versus attention.",
+      "cost": "Pick the architecture whose built-in assumptions fit your data, and you pay for far less training data and compute.",
+      "terms": [
+        [
+          "CNN (convolution)",
+          "a network that scans an image with small local windows, so nearby pixels are grouped by design. Great for images, and needs less data."
+        ],
+        [
+          "Vision Transformer (ViT)",
+          "applies transformer attention to image patches, letting any patch relate to any other. Very powerful, but must learn spatial structure from lots of data."
+        ],
+        [
+          "inductive bias",
+          "the assumptions baked into a model's design. When those assumptions match the problem (like locality for images), it learns from far less data."
+        ]
+      ]
+    },
+    {
+      "id": 21,
+      "concept": "Ensembles",
+      "diff": 2,
+      "prompt": "Same total compute. Which GENERALIZES better?",
+      "smart": "B",
+      "A": {
+        "spec": "Single",
+        "cap": "One big model, one set of mistakes",
+        "render": "ensemble",
+        "args": [
+          "single"
+        ]
+      },
+      "B": {
+        "spec": "Ensemble",
+        "cap": "Many small models, averaged",
+        "render": "ensemble",
+        "args": [
+          "ensemble"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "One big model feels stronger than a committee of small ones. For generalisation, the committee often wins.",
+        "Independently trained models make different, uncorrelated mistakes. Averaging them cancels those errors, cutting variance and improving calibration and out-of-distribution robustness.",
+        "So diversity beats raw size for reliability, at the same total compute."
+      ],
+      "caveat": "Flips when the budget makes each member too weak: then underfitting dominates and one big model in a better basin wins. And an ensemble costs more to serve at inference.",
+      "cost": "Ensembling trades serving cost for robustness. Cheaper to train diverse small models, pricier to run all of them per query.",
+      "terms": [
+        [
+          "ensemble",
+          "several separately trained models whose answers are combined (usually averaged) into one prediction."
+        ],
+        [
+          "why averaging helps",
+          "independent models make different mistakes. Averaging cancels the uncorrelated errors, so the combined answer is steadier than any single model."
+        ],
+        [
+          "robustness",
+          "how well performance holds up on messy or unfamiliar data, not just the clean test set."
+        ]
+      ]
+    },
+    {
+      "id": 22,
+      "concept": "\"Bigger = pricier\"",
+      "diff": 2,
+      "prompt": "Which model is CHEAPER to run per token?",
+      "smart": "A",
+      "A": {
+        "spec": "Sparse",
+        "cap": "Huge, but only a slice runs per token",
+        "render": "moe",
+        "args": [
+          "moe"
+        ]
+      },
+      "B": {
+        "spec": "Dense",
+        "cap": "Smaller, but all of it runs per token",
+        "render": "moe",
+        "args": [
+          "dense"
+        ]
+      },
+      "verdictLabel": "CHEAPER",
+      "bd": [
+        "A is the bigger model, so it looks pricier. Per token, it's cheaper.",
+        "A dense model runs every parameter for every token. A Mixture-of-Experts model has many expert blocks but a router sends each token to just a couple.",
+        "So a model with far more parameters can cost like a small one to run, because most of it stays dark on any given token."
+      ],
+      "caveat": "MoE saves compute per token, not memory: every expert must still be loaded. And routing adds its own overhead and instability.",
+      "cost": "The real lesson: total size and cost-per-token are different things. Activated size is what you pay for.",
+      "terms": [
+        [
+          "dense model",
+          "a model where every parameter runs for every token. Bigger dense model = more compute per token."
+        ],
+        [
+          "Mixture-of-Experts (MoE)",
+          "a model split into many 'expert' blocks, where a router activates only a couple per token. Huge total size, but only a slice runs each time."
+        ],
+        [
+          "activated vs total params",
+          "total = all the parameters that exist; activated = the ones actually used on a given token. You pay for activated, so MoE can be cheap despite being huge."
+        ]
+      ]
+    },
+    {
+      "id": 23,
+      "concept": "Learning rate",
+      "diff": 2,
+      "prompt": "Same model, two step sizes. Which one actually learns?",
+      "smart": "B",
+      "A": {
+        "spec": "Big steps",
+        "cap": "Big jumps that overshoot",
+        "render": "lrate",
+        "args": [
+          "big"
+        ]
+      },
+      "B": {
+        "spec": "Small steps",
+        "cap": "Small steps settling to the bottom",
+        "render": "lrate",
+        "args": [
+          "small"
+        ]
+      },
+      "verdictLabel": "ACTUALLY LEARNS",
+      "bd": [
+        "Bigger steps sound like faster learning. Past a point they overshoot the target and bounce out of the valley.",
+        "The well-sized rate steps down and settles at the minimum; the too-large one diverges and never lands.",
+        "So there's a ceiling: the best rate is the largest one that still converges, not simply the biggest."
+      ],
+      "caveat": "Too small is its own failure: painfully slow and prone to stalling on plateaus. The real target is a tuned rate, often with warmup and decay.",
+      "cost": "A bad learning rate is the number-one reason training silently fails to converge.",
+      "terms": [
+        [
+          "learning rate",
+          "how big a step training takes downhill on each update."
+        ],
+        [
+          "gradient descent",
+          "stepping down the loss surface toward lower error."
+        ]
+      ]
+    },
+    {
+      "id": 24,
+      "concept": "Dropout",
+      "diff": 2,
+      "prompt": "Overfitting risk. Which trick generalizes better?",
+      "smart": "B",
+      "A": {
+        "spec": "Full",
+        "cap": "All units active every time",
+        "render": "dropout",
+        "args": [
+          "full"
+        ]
+      },
+      "B": {
+        "spec": "Dropout",
+        "cap": "Random units switched off in training",
+        "render": "dropout",
+        "args": [
+          "dropout"
+        ]
+      },
+      "verdictLabel": "GENERALIZES",
+      "bd": [
+        "Using every unit every time looks like full power. On data it can overfit, that backfires.",
+        "Randomly switching units off during training stops them co-adapting, acting as regularization, so the net leans on robust features and generalizes better.",
+        "So deliberately handicapping the network during training makes it stronger at test time."
+      ],
+      "caveat": "Only when overfitting is the risk. If the model underfits, or already uses heavy normalization and huge data, dropout just adds noise, which is why many large pretrains set it to zero. It's off at inference.",
+      "cost": "Dropout is a nearly free regularizer: no extra parameters, just randomness during training.",
+      "terms": [
+        [
+          "dropout",
+          "randomly switching off a fraction of units each training step, then using all of them at test time."
+        ],
+        [
+          "regularization",
+          "anything that discourages memorizing the training data, to improve generalization."
+        ]
+      ]
+    },
+    {
+      "id": 25,
+      "concept": "Feature scaling",
+      "diff": 2,
+      "prompt": "Same data, features rescaled. Which trains faster?",
+      "smart": "B",
+      "A": {
+        "spec": "Raw",
+        "cap": "Stretched bowl, the path zig-zags",
+        "render": "scaling",
+        "args": [
+          "unscaled"
+        ]
+      },
+      "B": {
+        "spec": "Scaled",
+        "cap": "Round bowl, the path goes straight down",
+        "render": "scaling",
+        "args": [
+          "scaled"
+        ]
+      },
+      "verdictLabel": "TRAINS FASTER",
+      "bd": [
+        "Features on wildly different ranges warp the loss into a stretched ravine, so gradient descent zig-zags slowly toward the minimum.",
+        "Standardizing the features rounds the bowl out, so the path runs almost straight down and converges faster and more stably.",
+        "So a quick preprocessing step can matter as much as the optimizer."
+      ],
+      "caveat": "Tree models don't care about scale, and adaptive optimizers absorb some of it. Scaling changes the path, not the optimum, unless you also use L1/L2, kNN or RBF kernels.",
+      "cost": "Forgetting to scale is a classic cause of slow or stuck training in linear models and nets.",
+      "terms": [
+        [
+          "feature scaling",
+          "putting inputs on comparable ranges (e.g. standardizing to mean 0, variance 1)."
+        ],
+        [
+          "ill-conditioning",
+          "a stretched-ravine loss surface that makes gradient descent zig-zag."
+        ]
+      ]
+    },
+    {
+      "id": 26,
+      "concept": "Boundary",
+      "diff": 2,
+      "prompt": "Two classes in opposite corners. Which fits?",
+      "smart": "B",
+      "A": {
+        "spec": "Linear",
+        "cap": "One straight dividing line",
+        "render": "boundary",
+        "args": [
+          "linear"
+        ]
+      },
+      "B": {
+        "spec": "Tree",
+        "cap": "Stair-step dividing lines",
+        "render": "boundary",
+        "args": [
+          "tree"
+        ]
+      },
+      "verdictLabel": "FITS THE DATA",
+      "bd": [
+        "A linear model can only draw one straight cut. On checkerboard-style classes, no single line separates them.",
+        "A decision tree makes axis-aligned splits, carving the plane into regions, so it fits patterns a line can't.",
+        "So 'which is more powerful' depends on the data's shape, not on which sounds fancier."
+      ],
+      "caveat": "Add feature crosses or a kernel and a linear model bends too; and trees render smooth or diagonal boundaries as jagged steps and overfit. On truly linear data, the line generalizes better.",
+      "cost": "Match the boundary shape to your data and you need far less model and less tuning.",
+      "terms": [
+        [
+          "decision boundary",
+          "the line or surface a model uses to separate classes."
+        ],
+        [
+          "linearly separable",
+          "when one straight cut can split the classes; XOR/checkerboard is not, so a line fails."
+        ]
+      ]
+    },
+    {
+      "id": 27,
+      "concept": "L1 vs L2",
+      "diff": 2,
+      "prompt": "Which penalty zeroes out useless features?",
+      "smart": "A",
+      "A": {
+        "spec": "L1",
+        "cap": "Many weights pushed to zero",
+        "render": "reg",
+        "args": [
+          "sparse"
+        ]
+      },
+      "B": {
+        "spec": "L2",
+        "cap": "All weights shrunk a little",
+        "render": "reg",
+        "args": [
+          "smooth"
+        ]
+      },
+      "verdictLabel": "ZEROES FEATURES",
+      "bd": [
+        "Both penalties shrink weights. Only one drives them to exactly zero.",
+        "L1's penalty has corners on the axes, so the solution often lands with many weights at exactly 0, selecting features; L2 shrinks everything smoothly but rarely to zero.",
+        "So if you want a model that ignores junk inputs, the penalty shape decides it."
+      ],
+      "caveat": "Among correlated features L1 keeps one and zeros the rest somewhat arbitrarily; elastic net (L1+L2) restores grouped, more stable selection.",
+      "cost": "L1 gives you automatic feature selection: a smaller, cheaper, more interpretable model.",
+      "terms": [
+        [
+          "L1 / lasso",
+          "a penalty on the sum of |weights|; its corners push many weights to exactly zero (sparse)."
+        ],
+        [
+          "L2 / ridge",
+          "a penalty on squared weights; shrinks them smoothly toward zero but rarely to zero."
+        ]
+      ]
+    },
+    {
+      "id": 28,
+      "concept": "Precision vs recall",
+      "diff": 2,
+      "prompt": "Cancer screening. Which model do you want?",
+      "smart": "A",
+      "A": {
+        "spec": "Broad",
+        "cap": "Wide net: catches all, plus false alarms",
+        "render": "prnet",
+        "args": [
+          "broad"
+        ]
+      },
+      "B": {
+        "spec": "Precise",
+        "cap": "Tight net: only the sure ones",
+        "render": "prnet",
+        "args": [
+          "precise"
+        ]
+      },
+      "verdictLabel": "RIGHT FOR SCREENING",
+      "bd": [
+        "Neither is 'better' in general: it's a tradeoff you tune.",
+        "The broad net catches almost every case but raises false alarms (high recall); the precise net flags only sure cases but misses some (high precision).",
+        "For cancer screening a miss can be fatal, so you want high recall, the broad net, even at the cost of false alarms."
+      ],
+      "caveat": "Flip the domain and the answer flips: for spam blocking a false positive (a lost real email) is costly, so you'd favor precision instead.",
+      "cost": "Choosing the operating point is a business call: what's worse, a miss or a false alarm?",
+      "terms": [
+        [
+          "recall",
+          "of all real positives, how many you catch; high recall = few misses."
+        ],
+        [
+          "precision",
+          "of all you flag, how many are truly positive; high precision = few false alarms."
+        ]
+      ]
+    },
+    {
+      "id": 29,
+      "concept": "Loss landscape",
+      "diff": 2,
+      "prompt": "Which is guaranteed to find the best solution?",
+      "smart": "A",
+      "A": {
+        "spec": "Convex",
+        "cap": "One smooth valley, one bottom",
+        "render": "landscape",
+        "args": [
+          "convex"
+        ]
+      },
+      "B": {
+        "spec": "Bumpy",
+        "cap": "Many dips to get stuck in",
+        "render": "landscape",
+        "args": [
+          "bumpy"
+        ]
+      },
+      "verdictLabel": "GUARANTEED OPTIMUM",
+      "bd": [
+        "A convex loss is a single smooth bowl: every path downhill reaches the one global minimum.",
+        "A non-convex loss (any deep net) is bumpy, with many local dips and saddles, so where you end up depends on where you started.",
+        "So only the convex case comes with a guarantee; the bumpy one comes with hope and good engineering."
+      ],
+      "caveat": "In practice deep non-convex nets still train beautifully: most minima are about equally good and SGD slips past saddles, so non-convex means 'no guarantee', not 'bad'.",
+      "cost": "It's why classic convex models are so reliable, and why deep learning leans on tricks and scale instead of guarantees.",
+      "terms": [
+        [
+          "convex",
+          "a loss shaped like one bowl, so any local minimum is the global one."
+        ],
+        [
+          "local minimum / saddle",
+          "dips and flat spots in a bumpy (non-convex) loss where optimization can stall."
+        ]
+      ]
+    },
+    {
+      "id": 30,
+      "concept": "Double descent",
+      "diff": 3,
+      "prompt": "Which model has the WORST test error?",
+      "smart": "A",
+      "A": {
+        "spec": "Interpolation",
+        "cap": "Model sits right at the error peak",
+        "render": "ddescent",
+        "args": [
+          "peak"
+        ]
+      },
+      "B": {
+        "spec": "Classic",
+        "cap": "Model sits at the classic sweet spot",
+        "render": "ddescent",
+        "args": [
+          "sweet"
+        ]
+      },
+      "verdictLabel": "WORST ERROR",
+      "bd": [
+        "Classic bias-variance says the biggest model overfits worst. Double descent says otherwise: the worst spot is the middle.",
+        "Test error peaks right at the interpolation threshold, where the model has just enough capacity to fit the data exactly, with huge unstable weights. Grow far past that and implicit regularisation picks smoother solutions, so error descends a second time.",
+        "So 'just barely fits' (A) is the worst place to be, worse than the smaller sweet-spot model, and worse than a much larger one."
+      ],
+      "caveat": "This is the honest, defensible claim: the interpolation threshold is the peak. We do NOT claim 'just past it beats the sweet spot', which depends on noise, optimizer bias, and regularisation, and with good regularisation double descent can vanish entirely.",
+      "cost": "Why it matters: scaling a model up can lower error even when bias-variance says it should rise, so 'add parameters' is not always overfitting.",
+      "terms": [
+        [
+          "interpolation threshold",
+          "the size where a model has just enough capacity to fit the training data exactly (zero training error). Test error is worst right here."
+        ],
+        [
+          "double descent",
+          "the surprising pattern where test error falls, then rises to a peak at that threshold, then falls again as the model gets much bigger, two descents instead of one."
+        ],
+        [
+          "regularization",
+          "techniques that discourage a model from fitting noise (penalties, early stopping, dropout). Strong regularization can flatten the peak away entirely."
+        ]
+      ]
+    }
+  ]
+};
+/* __END_FALLBACK__ */
+let QUESTION_DATA = (QUESTIONS_FALLBACK.questions||[]);
+function buildRounds(data){
+  return data.map(q => {
+    const mk = (side, col) => Object.assign({}, side, { diagram: () => RENDER[side.render](...(side.args||[]), col) });
+    return Object.assign({}, q, { A: mk(q.A, C.accent), B: mk(q.B, C.accent2) });
+  });
+}
+let ROUNDS = buildRounds(QUESTION_DATA);
+(function loadQuestions(){
+  try {
+    fetch('questions.json', { cache:'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j && Array.isArray(j.questions) && j.questions.length) { QUESTION_DATA = j.questions; ROUNDS = buildRounds(QUESTION_DATA); } })
+      .catch(()=>{});
+  } catch(e){}
+})();
+
+// extra diagram renderers used above
+function ctx(tokens, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">tokens attending to each other</text>`;
+  const cx=W/2, cy=170, R=95, n=tokens;
+  const pts=[];
+  for(let i=0;i<n;i++){ const a=(-Math.PI/2)+i*(2*Math.PI/n); pts.push([cx+R*Math.cos(a), cy+R*Math.sin(a)]); }
+  // edges (every pair) — this is what grows with length^2
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){ s+=`<line x1="${pts[i][0].toFixed(1)}" y1="${pts[i][1].toFixed(1)}" x2="${pts[j][0].toFixed(1)}" y2="${pts[j][1].toFixed(1)}" stroke="${color}" stroke-width="0.8" opacity="0.3"/>`; }
+  for(let i=0;i<n;i++){ s+=`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="7" fill="${color}"/>`; }
+  const edges = n*(n-1)/2;
+  s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${n} tokens → ${edges} links</text>`;
+  s += `</svg>`; return s;
+}
+function specialist(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='narrow'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">capacity focused on one domain</text>`;
+    s += `<rect x="70" y="60" width="90" height="200" rx="8" fill="${color}" opacity="0.85"/>`;
+    s += `<text x="${W/2}" y="165" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">one</text>`;
+    s += `<text x="${W/2}" y="182" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">domain</text>`;
+    s += `<text x="${W/2}" y="292" text-anchor="middle" font-size="10.5" fill="${C.sub}">deep, but only here</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">capacity spread across many domains</text>`;
+    const cols=3, rows=4, ew=48, eh=42, gx=12, gy=10;
+    const startX=(W-(cols*ew+(cols-1)*gx))/2, startY=40;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ const x=startX+c*(ew+gx), y=startY+r*(eh+gy); s+=`<rect x="${x}" y="${y}" width="${ew}" height="${eh}" rx="5" fill="${color}" opacity="0.55"/>`; }
+    s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.sub}">broad, master of none</text>`;
+  }
+  s += `</svg>`; return s;
+}
+function emerge(on, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">capability vs scale</text>`;
+  // axes
+  s += `<line x1="35" y1="270" x2="205" y2="270" stroke="${C.line}" stroke-width="1.5"/>`;
+  s += `<line x1="35" y1="40" x2="35" y2="270" stroke="${C.line}" stroke-width="1.5"/>`;
+  s += `<text x="120" y="290" text-anchor="middle" font-size="9.5" fill="${C.sub}">scale →</text>`;
+  // step curve: flat then jump
+  const jx = on? 150 : 250;
+  s += `<path d="M35 260 L${Math.min(jx,205)} 260 ${on?`L${jx} 70 L205 60`:''}" fill="none" stroke="${color}" stroke-width="3"/>`;
+  const dotX = on? 178 : 130, dotY = on? 62 : 260;
+  s += `<circle cx="${dotX}" cy="${dotY}" r="7" fill="${color}"/>`;
+  s += `<text x="${dotX}" y="${on?dotY-12:dotY-12}" text-anchor="middle" font-size="10" fill="${C.ink}" font-weight="700">this model</text>`;
+  s += `<text x="${W/2}" y="300" text-anchor="middle" font-size="10.5" fill="${C.sub}">${on?'past the jump':'still flat'}</text>`;
+  s += `</svg>`; return s;
+}
+
+/* ---- classic-ML diagram renderers ---- */
+// Scatter of noisy points with a fit curve. kind: 'overfit' (wiggly through every point) or 'smooth'.
+function fit(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">training data + the fit</text>`;
+  s += `<line x1="30" y1="270" x2="205" y2="270" stroke="${C.line}" stroke-width="1.4"/>`;
+  s += `<line x1="30" y1="45" x2="30" y2="270" stroke="${C.line}" stroke-width="1.4"/>`;
+  // fixed noisy points around a gentle rising trend
+  const pts=[[45,240],[65,205],[85,225],[105,185],[125,200],[145,160],[165,175],[188,150]];
+  // fit path
+  if(kind==='overfit'){
+    // wiggly line hitting every point exactly
+    let d=`M${pts[0][0]} ${pts[0][1]}`;
+    for(let i=1;i<pts.length;i++){ const [x,y]=pts[i], [px,py]=pts[i-1]; const mx=(px+x)/2; d+=` Q ${mx} ${py-30} ${x} ${y}`; }
+    s += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">0 training error</text>`;
+  } else {
+    // straight-ish trend line missing points
+    s += `<path d="M45 235 L188 158" fill="none" stroke="${color}" stroke-width="3"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">some training error</text>`;
+  }
+  for(const [x,y] of pts){ s += `<circle cx="${x}" cy="${y}" r="4.5" fill="${C.ink}" opacity="0.75"/>`; }
+  s += `</svg>`; return s;
+}
+// capacity/flexibility bar: 'flex' = tall wiggly, 'simple' = short straight. For bias-variance small-data round.
+function flex(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">${kind==='flex'?'high-capacity, flexible':'low-capacity, simple'}</text>`;
+  s += `<line x1="30" y1="270" x2="205" y2="270" stroke="${C.line}" stroke-width="1.4"/>`;
+  s += `<line x1="30" y1="45" x2="30" y2="270" stroke="${C.line}" stroke-width="1.4"/>`;
+  const pts=[[55,200],[95,150],[135,210],[178,140]]; // only 4 points = tiny data
+  if(kind==='flex'){
+    let d=`M45 240 Q 75 120 95 150 Q 120 200 135 210 Q 160 90 178 140 L200 180`;
+    s += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">bends to every point</text>`;
+  } else {
+    s += `<path d="M45 210 L200 165" fill="none" stroke="${color}" stroke-width="3"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">ignores the wiggles</text>`;
+  }
+  for(const [x,y] of pts){ s += `<circle cx="${x}" cy="${y}" r="5" fill="${C.ink}" opacity="0.75"/>`; }
+  s += `</svg>`; return s;
+}
+// CNN (local receptive fields sliding) vs ViT (all-to-all patches). kind:'cnn'|'vit'
+function visionArch(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  // a 4x4 grid of image patches
+  const gs=34, gx0=(W-4*gs)/2, gy0=70;
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++){ s+=`<rect x="${gx0+c*gs}" y="${gy0+r*gs}" width="${gs-3}" height="${gs-3}" rx="3" fill="#e7e1d5"/>`; }
+  if(kind==='cnn'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">convolution: local windows</text>`;
+    // highlight a 2x2 local window
+    s += `<rect x="${gx0-3}" y="${gy0-3}" width="${2*gs+3}" height="${2*gs+3}" rx="4" fill="none" stroke="${color}" stroke-width="3"/>`;
+    s += `<rect x="${gx0+2*gs-3}" y="${gy0+2*gs-3}" width="${2*gs+3}" height="${2*gs+3}" rx="4" fill="none" stroke="${color}" stroke-width="2" opacity="0.5"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">locality built in</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">attention: every patch ↔ every patch</text>`;
+    // draw many connections from one patch to all others
+    const cx=gx0+0.5*gs, cy=gy0+0.5*gs;
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++){ if(r===0&&c===0)continue; s+=`<line x1="${cx}" y1="${cy}" x2="${gx0+(c+0.5)*gs}" y2="${gy0+(r+0.5)*gs}" stroke="${color}" stroke-width="0.7" opacity="0.35"/>`; }
+    s += `<circle cx="${cx}" cy="${cy}" r="6" fill="${color}"/>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">must learn locality</text>`;
+  }
+  s += `</svg>`; return s;
+}
+// one big model vs ensemble of small models averaged. kind:'single'|'ensemble'
+function ensemble(kind, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='single'){
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">one large model</text>`;
+    s += `<rect x="65" y="55" width="100" height="200" rx="8" fill="${color}" opacity="0.8"/>`;
+    s += `<text x="${W/2}" y="160" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">one big</text>`;
+    s += `<text x="${W/2}" y="178" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">predictor</text>`;
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.sub}">one set of mistakes</text>`;
+  } else {
+    s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">ensemble of smaller models</text>`;
+    const bw=44,bh=44,cols=2,rows=2,gx=22,gy=18, sx=(W-(cols*bw+(cols-1)*gx))/2, sy=48;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ s+=`<rect x="${sx+c*(bw+gx)}" y="${sy+r*(bh+gy)}" width="${bw}" height="${bh}" rx="6" fill="${color}" opacity="0.7"/>`; }
+    // averaging node
+    s += `<circle cx="${W/2}" cy="230" r="20" fill="none" stroke="${color}" stroke-width="2.5"/>`;
+    s += `<text x="${W/2}" y="235" text-anchor="middle" font-size="13" fill="${C.ink}" font-weight="700">avg</text>`;
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ s+=`<line x1="${sx+c*(bw+gx)+bw/2}" y1="${sy+r*(bh+gy)+bh}" x2="${W/2}" y2="210" stroke="${color}" stroke-width="0.8" opacity="0.4"/>`; }
+    s += `<text x="${W/2}" y="296" text-anchor="middle" font-size="10.5" fill="${C.sub}">errors cancel out</text>`;
+  }
+  s += `</svg>`; return s;
+}
+// double descent: the SHARED curve is drawn faint on both cards; THIS card's model is one bold
+// dot at its regime, with a guide line to the error axis so its height (the answer) is obvious.
+function ddescent(spot, color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s += `<text x="${W/2}" y="15" text-anchor="middle" font-size="10.5" fill="${C.sub}">test error as the model grows</text>`;
+  s += `<line x1="40" y1="265" x2="206" y2="265" stroke="${C.line}" stroke-width="1.4"/>`;
+  s += `<line x1="40" y1="40" x2="40" y2="265" stroke="${C.line}" stroke-width="1.4"/>`;
+  s += `<text x="123" y="285" text-anchor="middle" font-size="9.5" fill="${C.sub}">model size →</text>`;
+  s += `<text x="24" y="150" text-anchor="middle" font-size="9.5" fill="${C.sub}" transform="rotate(-90 24 150)">test error</text>`;
+  // the double-descent curve: dips to sweet spot, rises to peak at interpolation, falls again
+  const d="M52 210 L85 120 L118 150 L138 66 L178 170 L200 190";
+  const sweet=[85,120], peak=[138,66];
+  // faint full curve (same on both cards, so players see it's one shared reality)
+  s += `<path d="${d}" fill="none" stroke="${C.sub}" stroke-width="2" opacity="0.22"/>`;
+  s += `<line x1="138" y1="52" x2="138" y2="265" stroke="${C.sub}" stroke-dasharray="3 3" stroke-width="1" opacity="0.5"/>`;
+  s += `<text x="138" y="46" text-anchor="middle" font-size="8.5" fill="${C.sub}">interpolation point</text>`;
+  const mk = spot==='peak'?peak:sweet;
+  // guide from the marked model down to the axis: its height = its test error
+  s += `<line x1="${mk[0]}" y1="${mk[1]}" x2="${mk[0]}" y2="265" stroke="${color}" stroke-width="1.4" stroke-dasharray="2 3" opacity="0.7"/>`;
+  s += `<line x1="40" y1="${mk[1]}" x2="${mk[0]}" y2="${mk[1]}" stroke="${color}" stroke-width="1.4" stroke-dasharray="2 3" opacity="0.7"/>`;
+  s += `<circle cx="${mk[0]}" cy="${mk[1]}" r="8" fill="${color}"/>`;
+  // "this model" label: for the peak, push it right of the dot so it clears the "interpolation point" text; for the sweet spot, sit it just above.
+  if(spot==='peak'){
+    s += `<text x="${mk[0]+14}" y="${mk[1]-2}" text-anchor="start" font-size="10" fill="${C.ink}" font-weight="700">this model</text>`;
+  } else {
+    s += `<text x="${mk[0]}" y="${mk[1]-13}" text-anchor="middle" font-size="10" fill="${C.ink}" font-weight="700">this model</text>`;
+  }
+  const lbl = spot==='peak'?'sits right at interpolation':'at the classical sweet spot';
+  s += `<text x="${W/2}" y="298" text-anchor="middle" font-size="10.5" fill="${C.ink}" font-weight="700">${lbl}</text>`;
+  s += `</svg>`; return s;
+}
+
+/* ---- new minimal-word concept renderers (rounds 17–30) ---- */
+// Embeddings: semantic clusters vs uniform noise.
+function embed(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<rect x="26" y="42" width="178" height="212" rx="10" fill="none" stroke="${C.line}" stroke-width="1.4"/>`;
+  if(kind==='clustered'){
+    const groups=[[75,95],[158,120],[108,205]];
+    groups.forEach(([gx,gy],gi)=>{ for(let i=0;i<5;i++){ const a=i*1.5+gi; s+=`<circle cx="${(gx+Math.cos(a)*17+((i*7)%9-4)).toFixed(1)}" cy="${(gy+Math.sin(a)*17+((i*5)%9-4)).toFixed(1)}" r="5" fill="${color}"/>`; } });
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">similar sit together</text>`;
+  } else {
+    const pts=[[55,80],[120,68],[176,100],[80,132],[150,150],[45,180],[112,200],[182,210],[74,238],[142,234]];
+    pts.forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="5" fill="${color}"/>`);
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">no structure</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Positional encoding: ordered row w/ indices vs jumbled bag.
+function posenc(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const words=['the','cat','sat'];
+  if(kind==='ordered'){
+    words.forEach((w,i)=>{ const x=42+i*52; s+=`<rect x="${x}" y="115" width="44" height="40" rx="6" fill="${color}" opacity="0.85"/>`; s+=`<text x="${x+22}" y="140" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">${w}</text>`; s+=`<circle cx="${x+22}" cy="178" r="11" fill="none" stroke="${color}" stroke-width="1.6"/><text x="${x+22}" y="182" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${i+1}</text>`; });
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">order kept</text>`;
+  } else {
+    const pos=[[72,105,-16],[152,96,12],[95,170,20],[160,175,-14],[64,196,8]];
+    const ws=['the','cat','sat','the','cat'];
+    pos.forEach(([x,y,r],i)=>{ s+=`<g transform="rotate(${r} ${x} ${y})"><rect x="${x-22}" y="${y-19}" width="44" height="38" rx="6" fill="${color}" opacity="0.72"/><text x="${x}" y="${y+5}" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">${ws[i]}</text></g>`; });
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">order lost</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Temperature: sharp peak vs flat spread of next-token odds.
+function temp(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<line x1="30" y1="245" x2="205" y2="245" stroke="${C.line}" stroke-width="1.4"/>`;
+  const xs=[50,88,126,164,196], hs = kind==='sharp'?[22,48,150,42,20]:[74,88,96,90,76];
+  xs.forEach((x,i)=>{ s+=`<rect x="${x-15}" y="${245-hs[i]}" width="30" height="${hs[i]}" rx="3" fill="${color}" opacity="${kind==='sharp'&&i===2?0.95:0.65}"/>`; });
+  s+=`<text x="${W/2}" y="270" text-anchor="middle" font-size="10.5" fill="${C.sub}">next-token odds</text>`;
+  s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${kind==='sharp'?'one clear winner':'all about equal'}</text>`;
+  s+=`</svg>`; return s;
+}
+// Knowledge source: locked weights vs open scratchpad.
+function knowledge(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='weights'){
+    s+=`<rect x="55" y="72" width="120" height="150" rx="10" fill="${color}" opacity="0.85"/>`;
+    s+=`<rect x="103" y="140" width="24" height="20" rx="3" fill="#fff"/>`;
+    s+=`<path d="M108 140 v-7 a7 7 0 0 1 14 0 v7" fill="none" stroke="#fff" stroke-width="3"/>`;
+    s+=`<text x="${W/2}" y="250" text-anchor="middle" font-size="10.5" fill="${C.sub}">baked in at training</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">fixed</text>`;
+  } else {
+    s+=`<rect x="55" y="72" width="120" height="150" rx="10" fill="none" stroke="${color}" stroke-width="2"/>`;
+    for(let i=0;i<4;i++){ s+=`<line x1="72" y1="${104+i*30}" x2="158" y2="${104+i*30}" stroke="${color}" stroke-width="2" opacity="0.5"/>`; }
+    s+=`<text x="150" y="70" font-size="17" fill="${color}">✎</text>`;
+    s+=`<text x="${W/2}" y="250" text-anchor="middle" font-size="10.5" fill="${C.sub}">handed in at run time</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">updatable now</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Fine-tune: whole model retrained vs frozen base + tiny adapter.
+function finetune(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='full'){
+    s+=`<rect x="60" y="72" width="110" height="168" rx="10" fill="${color}" opacity="0.85"/>`;
+    s+=`<text x="${W/2}" y="152" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">all weights</text>`;
+    s+=`<text x="${W/2}" y="168" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">retrained</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">heavy</text>`;
+  } else {
+    s+=`<rect x="42" y="72" width="108" height="168" rx="10" fill="#c9d6e6" opacity="0.7"/>`;
+    s+=`<text x="96" y="160" text-anchor="middle" font-size="10.5" fill="${C.sub}" font-weight="700">frozen</text>`;
+    s+=`<rect x="150" y="120" width="42" height="72" rx="7" fill="${color}" opacity="0.92"/>`;
+    s+=`<text x="171" y="152" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">tiny</text>`;
+    s+=`<text x="171" y="166" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">add-on</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">light</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// RAG: closed-book memory vs retrieve docs then answer.
+function rag(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='memory'){
+    s+=`<rect x="68" y="110" width="94" height="94" rx="12" fill="${color}" opacity="0.85"/>`;
+    s+=`<text x="${W/2}" y="162" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">model</text>`;
+    s+=`<text x="${W/2}" y="240" text-anchor="middle" font-size="10.5" fill="${C.sub}">answers from memory</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">closed book</text>`;
+  } else {
+    for(let i=0;i<3;i++){ s+=`<rect x="${34+i*9}" y="${88+i*7}" width="50" height="64" rx="5" fill="#fff" stroke="${color}" stroke-width="1.6"/>`; }
+    for(let i=0;i<3;i++){ s+=`<line x1="50" y1="${106+i*13}" x2="76" y2="${106+i*13}" stroke="${color}" stroke-width="1.6" opacity="0.55"/>`; }
+    s+=`<line x1="96" y1="120" x2="122" y2="120" stroke="${color}" stroke-width="2.2"/><path d="M122 115 l7 5 -7 5 z" fill="${color}"/>`;
+    s+=`<rect x="132" y="82" width="78" height="78" rx="12" fill="${color}" opacity="0.85"/>`;
+    s+=`<text x="171" y="126" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">model</text>`;
+    s+=`<text x="${W/2}" y="240" text-anchor="middle" font-size="10.5" fill="${C.sub}">pulls fresh docs first</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">open book</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Batching: one lane (idle GPU) vs many lanes packed (full GPU).
+function batch(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<rect x="150" y="120" width="55" height="72" rx="8" fill="${color}" opacity="0.9"/>`;
+  s+=`<text x="177" y="161" text-anchor="middle" font-size="10.5" fill="#fff" font-weight="700">GPU</text>`;
+  if(kind==='single'){
+    s+=`<rect x="30" y="146" width="58" height="20" rx="4" fill="${color}" opacity="0.55"/>`;
+    s+=`<line x1="88" y1="156" x2="150" y2="156" stroke="${color}" stroke-width="2"/>`;
+    s+=`<text x="${W/2}" y="255" text-anchor="middle" font-size="10.5" fill="${C.sub}">one request at a time</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">GPU idle</text>`;
+  } else {
+    for(let i=0;i<5;i++){ const y=92+i*30; s+=`<rect x="30" y="${y}" width="58" height="20" rx="4" fill="${color}" opacity="0.6"/>`; s+=`<line x1="88" y1="${y+10}" x2="150" y2="156" stroke="${color}" stroke-width="1.5" opacity="0.6"/>`; }
+    s+=`<text x="${W/2}" y="255" text-anchor="middle" font-size="10.5" fill="${C.sub}">many packed together</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">GPU full</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Learning rate: small steps settle vs big steps overshoot out of the bowl.
+function lrate(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<path d="M35 70 Q ${W/2} 298 195 70" fill="none" stroke="${C.line}" stroke-width="2.5"/>`;
+  const bx=W/2, by=248;
+  if(kind==='small'){
+    const pts=[[62,112],[96,172],[122,214],[bx,by]];
+    let d=`M${pts[0][0]} ${pts[0][1]}`; pts.slice(1).forEach(p=>d+=` L${p[0]} ${p[1]}`);
+    s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="4 3"/>`;
+    pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${color}"/>`);
+    s+=`<circle cx="${bx}" cy="${by}" r="7" fill="${color}"/>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">settles at the bottom</text>`;
+  } else {
+    const pts=[[72,132],[170,110],[54,94],[188,78]];
+    let d=`M${pts[0][0]} ${pts[0][1]}`; pts.slice(1).forEach(p=>d+=` L${p[0]} ${p[1]}`);
+    s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="4 3"/>`;
+    pts.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${color}"/>`);
+    s+=`<text x="193" y="74" text-anchor="middle" font-size="15" fill="${color}">↗</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">overshoots, flies out</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Dropout: full net vs net with random units switched off.
+function dropout(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const cols=[70,115,160], rows=[100,150,200,248];
+  const N=(ci,ri)=>[cols[ci],rows[ri]];
+  const dropped = kind==='dropout' ? new Set(['0-1','1-3','2-0','1-1']) : new Set();
+  for(let ci=0;ci<2;ci++) for(let ri=0;ri<4;ri++) for(let rj=0;rj<4;rj++){ const a=ci+'-'+ri,b=(ci+1)+'-'+rj; if(dropped.has(a)||dropped.has(b))continue; s+=`<line x1="${N(ci,ri)[0]}" y1="${N(ci,ri)[1]}" x2="${N(ci+1,rj)[0]}" y2="${N(ci+1,rj)[1]}" stroke="${color}" stroke-width="0.6" opacity="0.22"/>`; }
+  for(let ci=0;ci<3;ci++) for(let ri=0;ri<4;ri++){ const k=ci+'-'+ri, off=dropped.has(k), x=cols[ci], y=rows[ri];
+    s+=`<circle cx="${x}" cy="${y}" r="9" fill="${off?'#fff':color}" stroke="${off?C.line:color}" stroke-width="1.6" opacity="${off?1:0.85}"/>`;
+    if(off){ s+=`<line x1="${x-6}" y1="${y-6}" x2="${x+6}" y2="${y+6}" stroke="#e0552e" stroke-width="2"/><line x1="${x+6}" y1="${y-6}" x2="${x-6}" y2="${y+6}" stroke="#e0552e" stroke-width="2"/>`; }
+  }
+  s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${kind==='dropout'?'random units off':'all units on'}</text>`;
+  s+=`</svg>`; return s;
+}
+// Feature scaling: round bowl (direct path) vs stretched ravine (zig-zag).
+function scaling(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const cx=118, cy=155;
+  if(kind==='scaled'){
+    [72,50,28].forEach(r=>s+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${C.line}" stroke-width="1.6"/>`);
+    s+=`<line x1="${cx-72}" y1="${cy-72}" x2="${cx}" y2="${cy}" stroke="${color}" stroke-width="2.2" stroke-dasharray="4 3"/>`;
+    s+=`<circle cx="${cx-72}" cy="${cy-72}" r="4" fill="${color}"/><circle cx="${cx}" cy="${cy}" r="6" fill="${color}"/>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">straight to the min</text>`;
+  } else {
+    [1,0.66,0.34].forEach(k=>s+=`<ellipse cx="${cx}" cy="${cy}" rx="${90*k}" ry="${34*k}" fill="none" stroke="${C.line}" stroke-width="1.6"/>`);
+    const pts=[[38,120],[150,150],[70,166],[150,156],[100,158],[cx,cy]];
+    let d=`M${pts[0][0]} ${pts[0][1]}`; pts.slice(1).forEach(p=>d+=` L${p[0]} ${p[1]}`);
+    s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-dasharray="4 3"/>`;
+    s+=`<circle cx="${cx}" cy="${cy}" r="6" fill="${color}"/>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">zig-zags slowly</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+// Decision boundary: straight line vs axis-aligned steps on XOR data.
+function boundary(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<rect x="30" y="46" width="170" height="196" rx="8" fill="none" stroke="${C.line}" stroke-width="1.4"/>`;
+  const A=[[60,82],[86,72],[70,106],[150,188],[172,202],[146,214]];
+  const B=[[150,82],[172,96],[156,110],[66,188],[86,204],[60,214]];
+  if(kind==='linear'){ s+=`<line x1="42" y1="228" x2="190" y2="62" stroke="${color}" stroke-width="2.5"/>`; }
+  else { s+=`<line x1="115" y1="50" x2="115" y2="238" stroke="${color}" stroke-width="2.5"/><line x1="34" y1="148" x2="196" y2="148" stroke="${color}" stroke-width="2.5"/>`; }
+  A.forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="5" fill="${color}"/>`);
+  B.forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="5" fill="none" stroke="${C.ink}" stroke-width="1.8"/>`);
+  s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${kind==='linear'?'one straight cut':'axis-aligned steps'}</text>`;
+  s+=`</svg>`; return s;
+}
+// L1 vs L2: sparse (many exact zeros) vs all shrunk small.
+function reg(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  s+=`<line x1="28" y1="205" x2="205" y2="205" stroke="${C.line}" stroke-width="1.4"/>`;
+  const xs=[46,77,108,139,170,196], hs = kind==='sparse'?[112,0,0,72,0,46]:[72,30,24,60,27,46];
+  xs.forEach((x,i)=>{ if(hs[i]===0){ s+=`<circle cx="${x}" cy="205" r="3.5" fill="${C.sub}"/>`; } else { s+=`<rect x="${x-11}" y="${205-hs[i]}" width="22" height="${hs[i]}" rx="3" fill="${color}" opacity="0.8"/>`; } });
+  s+=`<text x="${W/2}" y="228" text-anchor="middle" font-size="10.5" fill="${C.sub}">weight sizes</text>`;
+  s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">${kind==='sparse'?'many zeroed out':'all shrunk small'}</text>`;
+  s+=`</svg>`; return s;
+}
+// Precision vs recall: wide net (catches all + false alarms) vs tight net (only sure, misses some).
+function prnet(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  const targets=[[72,92],[120,80],[96,140],[150,128],[82,188]];
+  const nontar=[[160,96],[60,140],[176,182],[112,198],[142,192],[54,96]];
+  if(kind==='broad'){
+    s+=`<ellipse cx="106" cy="132" rx="82" ry="82" fill="${color}" opacity="0.12" stroke="${color}" stroke-width="2"/>`;
+    s+=`<text x="${W/2}" y="286" text-anchor="middle" font-size="10.5" fill="${C.sub}">catches all + false alarms</text>`;
+    s+=`<text x="${W/2}" y="300" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">high recall</text>`;
+  } else {
+    s+=`<ellipse cx="96" cy="112" rx="46" ry="46" fill="${color}" opacity="0.12" stroke="${color}" stroke-width="2"/>`;
+    s+=`<text x="${W/2}" y="286" text-anchor="middle" font-size="10.5" fill="${C.sub}">only sure ones, misses some</text>`;
+    s+=`<text x="${W/2}" y="300" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">high precision</text>`;
+  }
+  targets.forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="6" fill="${color}"/>`);
+  nontar.forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="6" fill="none" stroke="${C.sub}" stroke-width="1.6"/>`);
+  s+=`</svg>`; return s;
+}
+// Loss landscape: single convex bowl vs bumpy many-minima terrain.
+function landscape(kind,color){
+  const W=230,H=310; let s=svgOpen(W,H);
+  if(kind==='convex'){
+    s+=`<path d="M32 70 Q ${W/2} 300 198 70" fill="none" stroke="${C.line}" stroke-width="3"/>`;
+    s+=`<circle cx="${W/2}" cy="187" r="8" fill="${color}"/>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">one true bottom</text>`;
+  } else {
+    s+=`<path d="M28 96 C 58 210, 82 120, 106 178 S 150 92, 166 168 S 196 112, 202 152" fill="none" stroke="${C.line}" stroke-width="3"/>`;
+    s+=`<circle cx="104" cy="172" r="8" fill="${color}"/>`;
+    s+=`<text x="104" y="152" text-anchor="middle" font-size="9" fill="${C.sub}">stuck</text>`;
+    s+=`<text x="${W/2}" y="296" text-anchor="middle" font-size="11" fill="${C.ink}" font-weight="700">many local dips</text>`;
+  }
+  s+=`</svg>`; return s;
+}
+
+/* ============================================================
+   GAME ENGINE
+   ============================================================ */
+let state=null;
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+const ROUNDS_PER_RUN = 6;
+function pickRun(){
+  // pick N distinct rounds at random from the full pool, then order them easy → hard
+  // (warm-up=1, machinery/hard=2, expert=3) so each session still ramps.
+  const chosen = shuffle(ROUNDS).slice(0, Math.min(ROUNDS_PER_RUN, ROUNDS.length));
+  const rank = r => (r.diff||2) - (r.tier==='machinery'?0.3:0); // machinery sits just before classic-ML hard
+  return chosen.map((r,i)=>({r,i})).sort((a,b)=> (rank(a.r)-rank(b.r)) || (a.i-b.i)).map(o=>o.r);
+}
+function startRun(){
+  // each session plays a fresh random 6 of the 30, ordered easy → hard (slot A/B also randomized)
+  state={ queue:pickRun(), idx:0, correct:0, streak:0, best:0, answered:false, swap:false };
+  showScreen('game'); renderRound();
+}
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
+
+function renderRound(){
+  const r=state.queue[state.idx]; state.answered=false;
+  state.swap = Math.random()<0.5; // randomize which physical card is the smart one
+  document.getElementById('counter').textContent=`Round ${state.idx+1} / ${state.queue.length}`;
+  document.getElementById('progress').style.width=`${(state.idx/state.queue.length)*100}%`;
+  document.getElementById('streakNum').textContent=state.streak;
+  document.getElementById('streakBox').classList.toggle('hot', state.streak>=2);
+
+  document.getElementById('conceptTag').textContent=r.concept;
+  const dt=document.getElementById('diffTag');
+  if(r.tier==='machinery'){ dt.textContent='machinery'; dt.className='difftag dm'; }
+  else { const dlabel = r.diff===3?'expert':r.diff===2?'hard':'warm-up'; dt.textContent=dlabel; dt.className='difftag d'+r.diff; }
+  document.getElementById('promptText').textContent=r.prompt;
+
+  // decide which model object goes in slot A vs B
+  const smartObj = r[r.smart];
+  const dumbObj  = r[r.smart==='A'?'B':'A'];
+  const slotA = state.swap ? dumbObj : smartObj;
+  const slotB = state.swap ? smartObj : dumbObj;
+  state.smartSlot = state.swap ? 'B' : 'A';
+
+  document.getElementById('specA').textContent=slotA.spec;
+  document.getElementById('specB').textContent=slotB.spec;
+  document.getElementById('capA').textContent=slotA.cap||'';
+  document.getElementById('capB').textContent=slotB.cap||'';
+  document.getElementById('diagA').innerHTML=slotA.diagram();
+  document.getElementById('diagB').innerHTML=slotB.diagram();
+  // remember slot labels for the end-of-run summary
+  state.slotSpec = { A:slotA.spec, B:slotB.spec };
+
+  for(const s of ['A','B']){ const c=document.getElementById('card'+s); c.className='mcard'; c.querySelector('.badge').textContent=''; }
+  document.getElementById('revealPanel').style.display='none';
+  startTimer();
+}
+
+/* ---- round timer ---- */
+const ROUND_SECONDS = 25;
+function stopTimer(){ if(state && state.timerId){ clearInterval(state.timerId); state.timerId=null; } }
+function paintTimer(){
+  const box=document.getElementById('timerBox'), num=document.getElementById('timerNum');
+  num.textContent = state.timeLeft;
+  box.classList.toggle('warn', state.timeLeft<=5 && state.timeLeft>0 && !state.answered);
+}
+function startTimer(){
+  stopTimer();
+  state.timeLeft = ROUND_SECONDS;
+  const box=document.getElementById('timerBox');
+  box.classList.remove('done'); box.classList.remove('warn');
+  paintTimer();
+  const myId = setInterval(()=>{
+    if(!state || !document.getElementById('game').classList.contains('active')){ clearInterval(myId); return; }
+    if(state.answered){ stopTimer(); return; }
+    state.timeLeft--;
+    paintTimer();
+    if(state.timeLeft<=0){ stopTimer(); onTimeUp(); }
+  }, 1000);
+  state.timerId = myId;
+}
+function onTimeUp(){
+  document.getElementById('timerBox').classList.add('done');
+  document.getElementById('timerBox').classList.remove('warn');
+  pick(null); // no choice made → counts as a miss, reveals the answer
+}
+
+function pick(slot){
+  if(state.answered) return; state.answered=true;
+  stopTimer();
+  const timedOut = (slot===null);
+  const r=state.queue[state.idx];
+  const correct = (slot===state.smartSlot);
+  const smartSlot=state.smartSlot, dumbSlot = smartSlot==='A'?'B':'A';
+  const cs=document.getElementById('card'+smartSlot), cw=document.getElementById('card'+dumbSlot);
+  cs.classList.add('reveal','smart'); cw.classList.add('reveal','dim');
+  const vlabel = r.verdictLabel || 'HIGHER-END';
+  cs.querySelector('.badge').textContent = vlabel;
+  cw.querySelector('.badge').textContent = 'the other one';
+  if(!correct && !timedOut) document.getElementById('card'+slot).classList.add('picked-wrong');
+
+  if(correct){ state.correct++; state.streak++; state.best=Math.max(state.best,state.streak); }
+  else state.streak=0;
+  document.getElementById('streakNum').textContent=state.streak;
+  document.getElementById('streakBox').classList.toggle('hot', state.streak>=2);
+
+  // record this round for the end-of-run summary
+  (state.log = state.log || []).push({
+    concept: r.concept,
+    prompt: r.prompt,
+    correctSpec: state.slotSpec[smartSlot],
+    pickedSpec: timedOut ? null : state.slotSpec[slot],
+    correct, timedOut
+  });
+
+  const v=document.getElementById('verdict');
+  if(correct){ v.textContent='You read it right.'; v.className='verdict win'; }
+  else if(timedOut){ v.textContent="Time's up."; v.className='verdict lose'; }
+  else { v.textContent='The obvious read fooled you.'; v.className='verdict lose'; }
+  // plain-words glossary for the round's jargon
+  const termsBox=document.getElementById('termsBox');
+  if(r.terms && r.terms.length){
+    document.getElementById('termsBody').innerHTML = r.terms.map(([t,d])=>`<div class="term"><b>${t}</b> — ${d}</div>`).join('');
+    termsBox.style.display='block';
+  } else { termsBox.style.display='none'; }
+
+  document.getElementById('bdTitle').textContent = 'Breaking down ' + r.concept;
+  document.getElementById('bdBody').innerHTML = r.bd.map(p=>`<p>${p}</p>`).join('');
+  document.getElementById('bdCaveat').textContent = 'Caveat: ' + r.caveat;
+  document.getElementById('costText').textContent = '💸  ' + r.cost;
+
+  document.getElementById('nextBtn').textContent = (state.idx+1>=state.queue.length)?'See your result →':'Next round →';
+  document.getElementById('revealPanel').style.display='block';
+  document.getElementById('progress').style.width=`${((state.idx+1)/state.queue.length)*100}%`;
+}
+
+function nextRound(){ state.idx++; if(state.idx>=state.queue.length) renderEnd(); else renderRound(); }
+
+function rankFor(pct){
+  if(pct===100) return {name:'ML-brained', line:"Flawless, including the brutal ones. You reason from mechanism and tradeoffs, not size: memory-bound decode, tokenization, the residual stream, double descent. That's the real thing."};
+  if(pct>=80)  return {name:'Sharp read', line:"Strong. You get how models actually run, not just how big they are: what bounds decoding, why precision is slack, why context costs what it does. The frontier rounds are where the rest fall."};
+  if(pct>=60)  return {name:'Getting the eye', line:"Solid. You beat the easy traps. The machinery band (KV cache, quantization, GQA) and the double-descent finale are where intuition and reality part ways."};
+  if(pct>=38)  return {name:'Fooled by size', line:"Size and 'bigger is better' got you more than once, which is the whole point. Most of these hinge on how a model runs or generalizes, not how many parameters it has."};
+  return {name:'Counter-intuition ahead', line:"Almost every answer here is the opposite of the obvious one. That's not a trick, it's how models actually behave under the hood. Worth a rematch."};
+}
+function renderEnd(){
+  const total=state.queue.length, pct=Math.round((state.correct/total)*100), rk=rankFor(pct);
+  document.getElementById('progress').style.width='100%';
+  document.getElementById('rankName').textContent=rk.name;
+  document.getElementById('bigScore').innerHTML=`${state.correct}<span>/${total}</span>`;
+  document.getElementById('lessonText').textContent=rk.line;
+
+  // recap of the rounds just played
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const rows=(state.log||[]).map((e,i)=>{
+    const mark = e.correct ? '<span class="sc ok">✓</span>' : '<span class="sc no">✗</span>';
+    const you = e.timedOut ? '<i>ran out of time</i>' : esc(e.pickedSpec);
+    const youLine = e.correct
+      ? `you picked <b>${you}</b>`
+      : `you picked ${you}, answer was <b>${esc(e.correctSpec)}</b>`;
+    return `<div class="srow ${e.correct?'r-ok':'r-no'}">
+      ${mark}
+      <div class="stxt"><div class="sq">${i+1}. ${esc(e.prompt)}</div>
+      <div class="sa">${youLine} <span class="sconcept">${esc(e.concept)}</span></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('summaryBox').innerHTML =
+    `<div class="sumhead">Your ${total} rounds</div>${rows}`;
+
+  const share=`I scored ${state.correct}/${total} on Which Brain? — reading how AI models actually work under the hood, where the obvious answer is usually wrong. Can you beat it?`;
+  const sb=document.getElementById('shareText'), msg=document.getElementById('copiedMsg');
+  sb.textContent=share; msg.textContent='';
+  document.getElementById('againBtn').onclick=startRun;
+  sb.onclick=()=>{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(share).then(()=>msg.textContent='Copied. Paste it anywhere.',()=>msg.textContent='Select the text to copy.'); } else msg.textContent='Select the text to copy.'; };
+  showScreen('end');
+}
+function goStart(){ showScreen('start'); }
+
+document.addEventListener('keydown',(e)=>{
+  if(!document.getElementById('game').classList.contains('active')||!state) return;
+  const k=e.key.toLowerCase(), af=document.activeElement;
+  if(!state.answered){
+    if(k==='a'||k==='1') pick('A');
+    else if(k==='b'||k==='2') pick('B');
+    else if((k==='enter'||k===' ')&&af&&(af.id==='cardA'||af.id==='cardB')){ e.preventDefault(); pick(af.id==='cardA'?'A':'B'); }
+  } else if(k==='enter'||k===' '){ e.preventDefault(); nextRound(); }
+});
+
+/* ---- deep-blue network background (original procedural art) ---- */
+(function(){
+  const cv=document.getElementById('netbg'); if(!cv) return;
+  const ctx=cv.getContext('2d'); const DPR=Math.min(2,window.devicePixelRatio||1);
+  let W,H,nodes=[]; const rand=(a,b)=>a+Math.random()*(b-a);
+  function build(){
+    W=cv.width=Math.floor(innerWidth*DPR); H=cv.height=Math.floor(innerHeight*DPR);
+    cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px';
+    const n=Math.round(115*(innerWidth*innerHeight)/(1280*800));
+    nodes=[];
+    for(let i=0;i<n;i++){ const z=Math.random();
+      nodes.push({x:rand(0,W),y:rand(0,H),z,r:(0.6+z*2.4)*DPR,a:0.18+z*0.7}); }
+  }
+  function draw(){
+    const g=ctx.createLinearGradient(0,0,W*0.6,H);
+    g.addColorStop(0,'#16345f'); g.addColorStop(0.45,'#0e2547'); g.addColorStop(1,'#080a1f');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const rg=ctx.createRadialGradient(W*0.62,H*0.10,0,W*0.62,H*0.10,H*0.95);
+    rg.addColorStop(0,'rgba(70,140,220,0.28)'); rg.addColorStop(0.5,'rgba(40,90,170,0.09)'); rg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+    const vg=ctx.createRadialGradient(W*0.5,H*0.55,H*0.3,W*0.5,H*0.6,H*0.98);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(4,10,26,0.55)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    const maxD=165*DPR;
+    for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j], dx=a.x-b.x,dy=a.y-b.y, d=Math.hypot(dx,dy);
+      if(d<maxD){ const t=1-d/maxD, depth=(a.z+b.z)/2, alpha=t*t*(0.05+depth*0.5);
+        ctx.strokeStyle=`rgba(150,195,255,${alpha.toFixed(3)})`; ctx.lineWidth=(0.4+depth*0.8)*DPR;
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+    }
+    for(const p of nodes){
+      const grd=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+      grd.addColorStop(0,`rgba(200,225,255,${p.a})`); grd.addColorStop(0.4,`rgba(120,175,255,${p.a*0.5})`); grd.addColorStop(1,'rgba(120,175,255,0)');
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*4,0,7); ctx.fill();
+      ctx.fillStyle=`rgba(225,238,255,${Math.min(1,p.a+0.15)})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+    }
+  }
+  build(); draw();
+  let rt; addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{build();draw();},150); });
+})();
+
+mountHomeIcons();
+document.getElementById('startBtn').addEventListener('click', startRun);
+document.getElementById('homeBtn').addEventListener('click', ()=>{ stopTimer(); state=null; goStart(); });
+</script>
+</body>
+</html>
